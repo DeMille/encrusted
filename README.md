@@ -1,10 +1,10 @@
-<img src="https://svgshare.com/i/6sq.svg" alt="encrusted" width="200px;"/>
+<img src="https://demille.github.io/encrusted/src/img/name.svg" alt="encrusted" width="200px;"/>
 
 ---
 
 #### A z-machine (interpreter) for Infocom-era text adventure games like Zork
 
-Runs in a web interface or directly in a terminal.
+Runs in a web interface or directly in a terminal.  
 Built with Rust and WebAssembly (`rust32-unknwon-unknwon`).
 
 🎮 [Load the web version][web]
