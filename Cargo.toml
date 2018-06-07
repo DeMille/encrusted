@@ -1,0 +1,36 @@
+[package]
+authors = ["Sterling DeMille <sterlingdemille+github@gmail.com>"]
+name = "encrusted"
+version = "1.0.0"
+description = "A z-machine (interpreter) for Infocom-era text adventure games"
+repository = "https://github.com/demille/encrusted"
+readme = "README.md"
+license = "MIT"
+publish = false
+
+[[bin]]
+name = "encrusted"
+path = "src/rust/main.terminal.rs"
+
+[lib]
+crate-type = ["cdylib"]
+name = "web"
+path = "src/rust/main.web.rs"
+
+[profile.dev]
+opt-level = 2
+
+[dependencies]
+base64 = "0.8.0"
+enum_primitive = "0.1.1"
+rand = "0.4.2"
+serde = "1.0.21"
+serde_derive = "1.0.21"
+serde_json = "1.0.6"
+wasm-glue = "0.1.0"
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies]
+clap = "2.26.2"
+lazy_static = "0.2.9"
+regex = "0.2.2"
+term_size = "0.3.0"

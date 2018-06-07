@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Encrusted - Home</title>
+
+    <link href="//fonts.googleapis.com/css?family=Lora:400,400i,700,700i|Playfair+Display:400i" rel="stylesheet">
+    <link rel="stylesheet" href="/encrusted/main.css">
+    <link rel="stylesheet" href="//code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
+
+    <link rel="apple-touch-icon" sizes="180x180" href="/encrusted/img/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/encrusted/img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/encrusted/img/favicon-16x16.png">
+    <link rel="mask-icon" href="/encrusted/img/safari-pinned-tab.svg" color="#d71e38">
+    <link rel="shortcut icon" href="/encrusted/img/favicon.ico">
+</head>
+
+<body>
+    <div id="wasm-warning" class="hidden">
+        <div class="max-container">
+            <div class="content row">
+                <i class="ion-alert-circled"></i>
+                <span>
+                    <h4 class="mb-0"> Unsupported Browser :(</h4>
+                    <p class="mb-0">Your browser doesn't support WebAssembly yet.</p>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div id="root"></div>
+
+    <script>
+        if (typeof WebAssembly === 'undefined') {
+            document.getElementById('wasm-warning').classList.remove('hidden');
+        }
+    </script>
+
+    <script src="/encrusted/bundle.js"></script>
+    <script async defer src="https://buttons.github.io/buttons.js"></script>
+</body>
+
+</html>

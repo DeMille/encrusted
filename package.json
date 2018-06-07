@@ -1,0 +1,43 @@
+{
+  "name": "encrusted",
+  "version": "1.0.0",
+  "description": "A z-machine (interpreter) for Infocom-era text adventure games",
+  "author": "Sterling DeMille <sterlingdemille+npm@gmail.com>",
+  "license": "MIT",
+  "repository": "https://github.com/demille/encrusted",
+  "private": true,
+  "scripts": {
+    "bundle": "webpack --config ./webpack.prod.js --progress",
+    "build:debug": "cargo build --lib --target=\"wasm32-unknown-unknown\" && cp ./target/wasm32-unknown-unknown/debug/web.wasm ./build/web.wasm",
+    "build:release": "cargo build --lib --target=\"wasm32-unknown-unknown\" --release && cp ./target/wasm32-unknown-unknown/release/web.wasm ./build/web.wasm",
+    "release": "npm run bundle && npm run build:release",
+    "dev": "webpack-dev-server --config ./webpack.dev.js --content-base ./build --host 0.0.0.0 --port 8000 --no-inline",
+    "clippy": "cargo clippy -- -A unreadable_literal -A cast_lossless -Z no-trans",
+    "clippy-lite": "cargo clippy -- -A unreadable_literal -A cast_lossless -A match_same_arms -A match_overlapping_arm -Z no-trans"
+  },
+  "dependencies": {
+    "d3": "^3.5.17",
+    "lz-string": "^1.4.4",
+    "popper.js": "^1.14.3",
+    "react": "^16.2.0",
+    "react-dom": "^16.1.1",
+    "react-dropzone": "^4.2.9",
+    "react-modal": "^3.1.6",
+    "react-redux": "^5.0.6",
+    "react-router-dom": "^4.2.2",
+    "react-split-pane": "^0.1.71",
+    "react-tabs": "^2.1.1",
+    "redux": "^3.7.2",
+    "shouldcomponentupdate-children": "^1.1.0",
+    "wasm-ffi": "^0.1.1"
+  },
+  "devDependencies": {
+    "babel-core": "^6.26.0",
+    "babel-loader": "^7.1.2",
+    "babel-preset-react": "^6.24.1",
+    "copy-webpack-plugin": "^4.2.0",
+    "uglifyjs-webpack-plugin": "^1.2.5",
+    "webpack": "^3.6.0",
+    "webpack-dev-server": "^2.9.1"
+  }
+}
