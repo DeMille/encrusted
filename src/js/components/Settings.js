@@ -12,6 +12,14 @@ class Settings extends Component {
 
   update(ev) {
     this.props.update(ev.target.name, ev.target.checked);
+
+    if (ev.target.name === 'read' && !!ev.target.checked) {
+      window.speechSynthesis.speak(new SpeechSynthesisUtterance(''));
+
+      if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+        alert('Dictation enabled! You may need to re-enable it when you reload the page.');
+      }
+    }
   }
 
   deleteSaves() {

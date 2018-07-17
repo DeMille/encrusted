@@ -20,8 +20,11 @@ function makeUtterance(text) {
   const utterance = new SpeechSynthesisUtterance(text);
 
   // try to make is sound nice & at a reasonable speed
-  // I like the UK google voice here
-  if (google_uk) {
+  // - iOS is faster than windows voices
+  // - I like the UK google voice if available
+  if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+    utterance.rate = 1;
+  } else if (google_uk) {
     utterance.voice = google_uk;
     utterance.pitch = 0.85;
     utterance.rate = 1;

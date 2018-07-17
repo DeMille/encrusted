@@ -12,7 +12,7 @@ class Launcher extends Component {
   constructor(props) {
     super(props);
 
-    this.timer = null;
+    this.timers = [];
     this.state = { files: [] };
 
     this.onMouseEnter = this.onMouseEnter.bind(this);
@@ -88,7 +88,7 @@ class Launcher extends Component {
     let letter = 0;
 
     const next = () => {
-      this.timer = setTimeout(() => {
+      this.timers[0] = setTimeout(() => {
         this.title.innerHTML += lines[num][letter++];
 
         if (letter < lines[num].length) {
@@ -97,22 +97,22 @@ class Launcher extends Component {
           num++;
           letter = 0;
 
-          this.timer = setTimeout(() => {
+          this.timers[0] = setTimeout(() => {
             this.title.innerHTML = '> ';
-            this.timer = setTimeout(next, 250);
+            this.timers[0] = setTimeout(next, 250);
           }, 2500);
         }
       }, 100);
     };
 
     this.title.innerHTML = '> ';
-    this.timer = setTimeout(next, 750);
 
-    this.props.startWorker();
+    this.timers[0] = setTimeout(next, 750);
+    this.timers[1] = setTimeout(() => this.props.startWorker(), 2000);
   }
 
   componentWillUnmount() {
-    clearInterval(this.timer);
+    this.timers.forEach(t => clearInterval(t));
   }
 
   render() {
@@ -271,7 +271,7 @@ class Launcher extends Component {
                       Object tree inspection
                     </h4>
                     <p>
-                      Check inside the z-machine and its internal object state.
+                      Check inside the z-machine and its internal objects.
                     </p>
                   </div>
                 </div>
