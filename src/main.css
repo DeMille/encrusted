@@ -623,10 +623,9 @@ h1 {
     max-height: 100%;
     padding: 0 50px;
     margin: 0 0 0 auto;
-    overflow-y: scroll;
+    overflow-y: auto;
     -ms-overflow-style: none;
     -webkit-overflow-scrolling: touch;
-    overflow: -moz-scrollbars-none;
     transition: opacity 0.3s;
 }
 
@@ -641,7 +640,7 @@ h1 {
     margin: auto;
 }
 
-.bottom-dummy{
+.bottom-dummy {
     height: 60px;
 }
 
@@ -728,7 +727,7 @@ h1 {
 
 .move br + br {
     display: block;
-    margin: 15px 0;
+    margin: 15px 0 0;
     content: "";
 }
 
