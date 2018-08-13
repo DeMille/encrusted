@@ -1,8 +1,8 @@
 #![feature(slice_patterns)]
 
+extern crate base64;
 extern crate rand;
 extern crate serde_json;
-extern crate base64;
 extern crate wasm_glue;
 
 #[macro_use]
@@ -15,36 +15,31 @@ use std::cell::RefCell;
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_void};
 
-extern {
+extern "C" {
     fn js_message(mtype: *mut c_char, message: *mut c_char);
 }
 
 mod buffer;
 mod frame;
 mod instruction;
+mod options;
 mod quetzal;
 mod traits;
 mod ui_web;
-mod options;
 mod zmachine;
 
+use options::Options;
 use traits::UI;
 use ui_web::WebUI;
-use options::Options;
 use zmachine::Zmachine;
 
-
 // thread local mutable global
-thread_local!(
-    static ZVM: RefCell<Option<Zmachine>> = RefCell::new(None);
-);
-
+thread_local!(static ZVM: RefCell<Option<Zmachine>> = RefCell::new(None););
 
 #[no_mangle]
 pub fn hook() {
     wasm_glue::hook();
 }
-
 
 #[no_mangle]
 pub fn allocate(length: usize) -> *mut c_void {
@@ -54,7 +49,6 @@ pub fn allocate(length: usize) -> *mut c_void {
     ptr
 }
 
-
 #[no_mangle]
 pub fn deallocate(ptr: *mut c_void, length: usize) {
     unsafe {
@@ -62,25 +56,23 @@ pub fn deallocate(ptr: *mut c_void, length: usize) {
     }
 }
 
-
 fn get_string(ptr: *mut c_char) -> String {
-     let data = unsafe {
-        CStr::from_ptr(ptr)
-    };
+    let data = unsafe { CStr::from_ptr(ptr) };
 
     data.to_string_lossy().into_owned()
 }
 
-
-fn with<F, R>(func: F) -> R where F: FnOnce(&mut Zmachine) -> R {
+fn with<F, R>(func: F) -> R
+where
+    F: FnOnce(&mut Zmachine) -> R,
+{
     ZVM.with(|cell| {
         let mut wrapper = cell.borrow_mut();
         let zvm: &mut Zmachine = wrapper.as_mut().unwrap();
 
         func(zvm)
-	})
+    })
 }
-
 
 fn push_updates(zvm: &mut Zmachine) {
     let map = serde_json::to_string(&zvm.get_current_room()).unwrap();
@@ -96,7 +88,6 @@ fn push_updates(zvm: &mut Zmachine) {
     }
 }
 
-
 #[no_mangle]
 pub fn create(file_ptr: *mut u8, len: usize) {
     ZVM.with(|cell| {
@@ -108,9 +99,8 @@ pub fn create(file_ptr: *mut u8, len: usize) {
 
         let zvm = Zmachine::new(data, ui, opts);
         *cell.borrow_mut() = Some(zvm);
-	});
+    });
 }
-
 
 #[no_mangle]
 pub fn step() -> bool {
@@ -122,12 +112,10 @@ pub fn step() -> bool {
     })
 }
 
-
 #[no_mangle]
 pub fn feed(input_ptr: *mut c_char) {
     with(|zvm| zvm.handle_input(get_string(input_ptr)));
 }
-
 
 #[no_mangle]
 pub fn restore(b64_ptr: *mut c_char) {
@@ -144,24 +132,20 @@ pub fn get_updates() {
     with(|zvm| push_updates(zvm));
 }
 
-
 #[no_mangle]
 pub fn undo() -> bool {
     with(|zvm| zvm.undo())
 }
-
 
 #[no_mangle]
 pub fn redo() -> bool {
     with(|zvm| zvm.redo())
 }
 
-
 #[no_mangle]
 pub fn enable_instruction_logs(enabled: bool) {
     with(|zvm| zvm.options.log_instructions = enabled);
 }
-
 
 #[no_mangle]
 pub fn get_object_details(obj_num: u16) -> Box<String> {

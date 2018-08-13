@@ -1,6 +1,5 @@
-use std::fmt;
 use frame::Frame;
-
+use std::fmt;
 
 #[derive(Debug)]
 pub struct QuetzalSave {
@@ -24,7 +23,9 @@ impl QuetzalSave {
         let mut save = QuetzalSave::empty();
 
         let (form_header, _, form_body) = QuetzalSave::read_chunk(save_data);
-        if form_header != "FORM" { panic!("Can't find FORM header, bad save file?") }
+        if form_header != "FORM" {
+            panic!("Can't find FORM header, bad save file?")
+        }
 
         let chunks = &form_body[4..]; // skip the IFZS string at the start
         let mut offset = 0;
@@ -58,9 +59,15 @@ impl QuetzalSave {
         save
     }
 
-    pub fn make(pc: usize, current: &[u8], original: &[u8], frames: &[Frame],
-                chksum: u16, release: u16, serial: &[u8]) -> Vec<u8> {
-
+    pub fn make(
+        pc: usize,
+        current: &[u8],
+        original: &[u8],
+        frames: &[Frame],
+        chksum: u16,
+        release: u16,
+        serial: &[u8],
+    ) -> Vec<u8> {
         let mut save_data = Vec::new();
         let mut form_body = Vec::from(&b"IFZS"[..]); // Form starts w/ "IFZS"
 
@@ -83,13 +90,15 @@ impl QuetzalSave {
         body_length += (data[4] as usize) << 24;
         body_length += (data[5] as usize) << 16;
         body_length += (data[6] as usize) << 8;
-        body_length +=  data[7] as usize;
+        body_length += data[7] as usize;
 
-        let body = &data[8..(8+body_length)];
+        let body = &data[8..(8 + body_length)];
 
         // chunks get padded with an empty 0 byte if they have an odd length
         let mut chunk_length = 8 + body_length;
-        if chunk_length % 2 != 0 { chunk_length += 1; }
+        if chunk_length % 2 != 0 {
+            chunk_length += 1;
+        }
 
         (header, chunk_length, body)
     }
@@ -100,10 +109,10 @@ impl QuetzalSave {
 
         // 4 bytes for the length (BE)
         let length = body.len();
-        bytes.push( ((length & 0xFF000000) >> 24) as u8 );
-        bytes.push( ((length & 0x00FF0000) >> 16) as u8 );
-        bytes.push( ((length & 0x0000FF00) >> 8) as u8 );
-        bytes.push(  (length & 0x000000FF) as u8 );
+        bytes.push(((length & 0xFF000000) >> 24) as u8);
+        bytes.push(((length & 0x00FF0000) >> 16) as u8);
+        bytes.push(((length & 0x0000FF00) >> 8) as u8);
+        bytes.push((length & 0x000000FF) as u8);
 
         // + body
         bytes.extend(body);
@@ -116,10 +125,7 @@ impl QuetzalSave {
     }
 
     fn is_complete(&self) -> bool {
-        self.pc != 0 &&
-        self.chksum != 0 &&
-        !self.frames.is_empty() &&
-        !self.memory.is_empty()
+        self.pc != 0 && self.chksum != 0 && !self.frames.is_empty() && !self.memory.is_empty()
     }
 
     fn read_ifhd_body(&mut self, bytes: &[u8]) {
@@ -128,12 +134,12 @@ impl QuetzalSave {
 
         // 1 word for checksum
         self.chksum += (bytes[8] as u16) << 8;
-        self.chksum +=  bytes[9] as u16;
+        self.chksum += bytes[9] as u16;
 
         // 3 bytes for PC
         self.pc += (bytes[10] as usize) << 16;
         self.pc += (bytes[11] as usize) << 8;
-        self.pc +=  bytes[12] as usize;
+        self.pc += bytes[12] as usize;
     }
 
     fn make_ifhd_body(release: u16, serial: &[u8], chksum: u16, pc: usize) -> [u8; 13] {
@@ -141,7 +147,7 @@ impl QuetzalSave {
 
         // 1 word for release
         bytes[0] = ((release & 0xFF00) >> 8) as u8;
-        bytes[1] =  (release & 0x00FF) as u8;
+        bytes[1] = (release & 0x00FF) as u8;
 
         // 6 bytes for serial number
         bytes[2] = serial[0];
@@ -153,12 +159,12 @@ impl QuetzalSave {
 
         // 1 word for checksum
         bytes[8] = ((chksum & 0xFF00) >> 8) as u8;
-        bytes[9] =  (chksum & 0x00FF) as u8;
+        bytes[9] = (chksum & 0x00FF) as u8;
 
         // 3 bytes for PC
         bytes[10] = ((pc & 0xFF0000) >> 16) as u8;
         bytes[11] = ((pc & 0x00FF00) >> 8) as u8;
-        bytes[12] =  (pc & 0x0000FF) as u8;
+        bytes[12] = (pc & 0x0000FF) as u8;
 
         bytes
     }
@@ -191,7 +197,8 @@ impl QuetzalSave {
         }
 
         // XOR uncompressed with original to restore
-        self.memory = uncompressed.iter()
+        self.memory = uncompressed
+            .iter()
             .zip(original.iter())
             .map(|(a, b)| a ^ b)
             .collect();
@@ -233,18 +240,16 @@ impl QuetzalSave {
         let mut frames = Vec::new();
         let mut offset = 0;
 
-        while offset < bytes.len()-1 {
+        while offset < bytes.len() - 1 {
             // variable lengths found here:
             let num_locals = bytes[offset + 3] & 0b00001111;
             let mut stack_length = 0;
             stack_length += (bytes[offset + 6] as u16) << 8;
-            stack_length +=  bytes[offset + 7] as u16;
+            stack_length += bytes[offset + 7] as u16;
 
             // locals start @ byte 8, stack values start after locals
             // each value is a 2 byte word
-            let end = offset + 8
-                + num_locals as usize * 2
-                + stack_length as usize * 2;
+            let end = offset + 8 + num_locals as usize * 2 + stack_length as usize * 2;
 
             let slice = &bytes[offset..end];
             let frame = Frame::from_bytes(slice);
@@ -269,8 +274,13 @@ impl QuetzalSave {
 
 impl fmt::Display for QuetzalSave {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "PC: {:#04x} Chksum: {:#04x} Mem Length: {}\n",
-               self.pc, self.chksum, self.memory.len())?;
+        write!(
+            f,
+            "PC: {:#04x} Chksum: {:#04x} Mem Length: {}\n",
+            self.pc,
+            self.chksum,
+            self.memory.len()
+        )?;
 
         for frame in &self.frames {
             write!(f, "{}\n", frame)?;

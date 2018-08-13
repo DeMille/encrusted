@@ -1,29 +1,28 @@
-use std::fs::File;
-use std::path::PathBuf;
-use std::io::prelude::*;
+use std::boxed::Box;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fmt::Write as FmtWrite;
-use std::collections::{HashSet, HashMap};
-use std::boxed::Box;
+use std::fs::File;
+use std::io::prelude::*;
+use std::path::PathBuf;
 use std::process;
 
+use base64;
 use enum_primitive::FromPrimitive;
 use rand;
 use rand::{Rng, SeedableRng};
-use base64;
 use serde_json;
 
 use buffer::Buffer;
 use frame::Frame;
+use instruction::Branch;
 use instruction::Instruction;
 use instruction::Opcode;
-use instruction::OperandType;
 use instruction::Operand;
-use instruction::Branch;
-use quetzal::QuetzalSave;
+use instruction::OperandType;
 use options::Options;
+use quetzal::QuetzalSave;
 use traits::UI;
-
 
 #[derive(Debug)]
 enum ZStringState {
@@ -32,7 +31,6 @@ enum ZStringState {
     Tenbit1,
     Tenbit2(u8),
 }
-
 
 #[derive(Debug, Serialize)]
 pub struct Object {
@@ -53,7 +51,11 @@ impl Object {
             name += "(No Name)";
         }
 
-        Box::new(Object { number, name, children: Vec::new() })
+        Box::new(Object {
+            number,
+            name,
+            children: Vec::new(),
+        })
     }
 
     fn print_tree(&self, indent: &str, mut depth: u8, is_last: bool) -> String {
@@ -63,11 +65,13 @@ impl Object {
         if depth == 0 {
             out += &format!("{} ({})\n", self.name, self.number);
         } else {
-            out += &format!("{}{}── {} ({})\n",
+            out += &format!(
+                "{}{}── {} ({})\n",
                 indent,
                 if is_last { "└" } else { "├" },
                 self.name,
-                self.number);
+                self.number
+            );
 
             next += if is_last { "    " } else { "|   " };
         }
@@ -75,7 +79,7 @@ impl Object {
         depth += 1;
 
         for (i, child) in self.children.iter().enumerate() {
-            let is_last_child = i == self.children.len()-1;
+            let is_last_child = i == self.children.len() - 1;
             out += &(**child).print_tree(&next, depth, is_last_child);
         }
 
@@ -97,7 +101,6 @@ impl fmt::Display for Object {
     }
 }
 
-
 #[derive(Debug)]
 struct ObjectProperty {
     num: u8,
@@ -108,79 +111,83 @@ struct ObjectProperty {
 
 impl ObjectProperty {
     fn zero() -> ObjectProperty {
-        ObjectProperty { num: 0, addr: 0, len: 0, next: 0 }
+        ObjectProperty {
+            num: 0,
+            addr: 0,
+            len: 0,
+            next: 0,
+        }
     }
 }
 
-
 pub struct Zmachine {
-    pub ui:           Box<UI>,
-    pub options:      Options,
-    pub instr_log:    String,
-    version:          u8,
-    memory:           Buffer,
+    pub ui: Box<UI>,
+    pub options: Options,
+    pub instr_log: String,
+    version: u8,
+    memory: Buffer,
     original_dynamic: Vec<u8>,
-    save_dir:         String,
-    save_name:        String,
-    static_start:     usize,
-    routine_offset:   usize,
-    string_offset:    usize,
-    alphabet:         [Vec<String>; 3],
-    abbrev_table:     usize,
-    separators:       Vec<char>,
-    dictionary:       HashMap<String, usize>,
-    frames:           Vec<Frame>,
-    initial_pc:       usize,
-    pc:               usize,
-    globals_addr:     usize,
-    prop_defaults:    usize,
-    obj_table_addr:   usize,
-    obj_size:         usize,
-    attr_width:       usize,
-    paused_instr:     Option<Instruction>,
-    current_state:    Option<(String, Vec<u8>)>,
-    undos:            Vec<(String, Vec<u8>)>,
-    redos:            Vec<(String, Vec<u8>)>,
-    rng:              rand::XorShiftRng,
+    save_dir: String,
+    save_name: String,
+    static_start: usize,
+    routine_offset: usize,
+    string_offset: usize,
+    alphabet: [Vec<String>; 3],
+    abbrev_table: usize,
+    separators: Vec<char>,
+    dictionary: HashMap<String, usize>,
+    frames: Vec<Frame>,
+    initial_pc: usize,
+    pc: usize,
+    globals_addr: usize,
+    prop_defaults: usize,
+    obj_table_addr: usize,
+    obj_size: usize,
+    attr_width: usize,
+    paused_instr: Option<Instruction>,
+    current_state: Option<(String, Vec<u8>)>,
+    undos: Vec<(String, Vec<u8>)>,
+    redos: Vec<(String, Vec<u8>)>,
+    rng: rand::XorShiftRng,
 }
 
 impl Zmachine {
     pub fn new(data: Vec<u8>, ui: Box<UI>, options: Options) -> Zmachine {
         let memory = Buffer::new(data);
 
-        let version       = memory.read_byte(0x00);
-        let initial_pc    = memory.read_word(0x06) as usize;
+        let version = memory.read_byte(0x00);
+        let initial_pc = memory.read_word(0x06) as usize;
         let prop_defaults = memory.read_word(0x0A) as usize;
-        let static_start  = memory.read_word(0x0E) as usize;
+        let static_start = memory.read_word(0x0E) as usize;
 
         let mut zvm = Zmachine {
             version,
             ui,
-            save_dir:         format!("{}", &options.save_dir),
-            save_name:        format!("{}.sav", &options.save_name),
+            save_dir: format!("{}", &options.save_dir),
+            save_name: format!("{}.sav", &options.save_name),
             options,
-            instr_log:        String::new(),
+            instr_log: String::new(),
             original_dynamic: memory.slice(0, static_start).to_vec(),
-            globals_addr:     memory.read_word(0x0C) as usize,
-            routine_offset:   memory.read_word(0x28) as usize,
-            string_offset:    memory.read_word(0x2A) as usize,
+            globals_addr: memory.read_word(0x0C) as usize,
+            routine_offset: memory.read_word(0x28) as usize,
+            string_offset: memory.read_word(0x2A) as usize,
             static_start,
             initial_pc,
-            pc:               initial_pc,
-            frames:           vec![Frame::empty()],
-            alphabet:         Zmachine::default_alphabet(),
-            abbrev_table:     memory.read_word(0x18) as usize,
-            separators:       Vec::new(),
-            dictionary:       HashMap::new(),
+            pc: initial_pc,
+            frames: vec![Frame::empty()],
+            alphabet: Zmachine::default_alphabet(),
+            abbrev_table: memory.read_word(0x18) as usize,
+            separators: Vec::new(),
+            dictionary: HashMap::new(),
             prop_defaults,
-            obj_table_addr:   prop_defaults + (if version <= 3 { 31 } else { 63 }) * 2,
-            obj_size:         if version <= 3 { 9 } else { 14 },
-            attr_width:       if version <= 3 { 4 } else { 6 },
-            paused_instr:     None,
-            current_state:    None,
-            undos:            Vec::new(),
-            redos:            Vec::new(),
-            rng:              rand::SeedableRng::from_seed([90, 111, 114, 107]),
+            obj_table_addr: prop_defaults + (if version <= 3 { 31 } else { 63 }) * 2,
+            obj_size: if version <= 3 { 9 } else { 14 },
+            attr_width: if version <= 3 { 4 } else { 6 },
+            paused_instr: None,
+            current_state: None,
+            undos: Vec::new(),
+            redos: Vec::new(),
+            rng: rand::SeedableRng::from_seed([90, 111, 114, 107]),
             memory,
         };
 
@@ -221,101 +228,113 @@ impl Zmachine {
         match self.version {
             1...3 => addr * 2,
             4...7 => addr * 4,
-            _     => addr * 8,
+            _ => addr * 8,
         }
     }
 
     fn unpack_routine_addr(&self, addr: u16) -> usize {
         match self.unpack(addr) {
             x @ 6...7 => x + self.routine_offset * 8,
-            x         => x,
+            x => x,
         }
     }
 
     fn unpack_print_paddr(&self, addr: u16) -> usize {
         match self.unpack(addr) {
             x @ 6...7 => x + self.string_offset * 8,
-            x         => x,
+            x => x,
         }
     }
 
     fn read_global(&self, index: u8) -> u16 {
-        if index > 240 { panic!("Can't read global{}!", index); }
+        if index > 240 {
+            panic!("Can't read global{}!", index);
+        }
 
         let addr = self.globals_addr + index as usize * 2;
         self.memory.read_word(addr)
     }
 
     fn write_global(&mut self, index: u8, value: u16) {
-        if index > 240 { panic!("Can't write global{}!", index); }
+        if index > 240 {
+            panic!("Can't write global{}!", index);
+        }
 
         let addr = self.globals_addr + index as usize * 2;
         self.memory.write_word(addr, value);
     }
 
     fn read_local(&self, index: u8) -> u16 {
-        self.frames.last()
+        self.frames
+            .last()
             .expect("Can't write local, no frames!")
             .read_local(index)
     }
 
     fn write_local(&mut self, index: u8, value: u16) {
-        self.frames.last_mut()
+        self.frames
+            .last_mut()
             .expect("Can't write local, no frames!")
             .write_local(index, value);
     }
 
     fn stack_push(&mut self, value: u16) {
-        self.frames.last_mut()
+        self.frames
+            .last_mut()
             .expect("Can't push to stack, no frames!")
             .stack_push(value);
     }
 
     fn stack_pop(&mut self) -> u16 {
-        self.frames.last_mut()
+        self.frames
+            .last_mut()
             .expect("Can't pop stack, no frames!")
             .stack_pop()
     }
 
     fn stack_peek(&mut self) -> u16 {
-        self.frames.last_mut()
+        self.frames
+            .last_mut()
             .expect("Can't peek stack, no frames!")
             .stack_peek()
     }
 
     fn read_variable(&mut self, index: u8) -> u16 {
         match index {
-            0        => self.stack_pop(),
-            1...15   => self.read_local(index-1),
-            16...255 => self.read_global(index-16),
-            _        => unreachable!(),
+            0 => self.stack_pop(),
+            1...15 => self.read_local(index - 1),
+            16...255 => self.read_global(index - 16),
+            _ => unreachable!(),
         }
     }
 
     fn read_indirect_variable(&mut self, index: u8) -> u16 {
         match index {
-            0        => self.stack_peek(),
-            1...15   => self.read_local(index-1),
-            16...255 => self.read_global(index-16),
-            _        => unreachable!(),
+            0 => self.stack_peek(),
+            1...15 => self.read_local(index - 1),
+            16...255 => self.read_global(index - 16),
+            _ => unreachable!(),
         }
     }
 
     fn write_variable(&mut self, index: u8, value: u16) {
         match index {
-            0        => self.stack_push(value),
-            1...15   => self.write_local(index-1, value),
-            16...255 => self.write_global(index-16, value),
-            _        => unreachable!(),
+            0 => self.stack_push(value),
+            1...15 => self.write_local(index - 1, value),
+            16...255 => self.write_global(index - 16, value),
+            _ => unreachable!(),
         }
     }
 
     fn write_indirect_variable(&mut self, index: u8, value: u16) {
         match index {
-            0        => {self.stack_pop(); self.stack_push(value);}
-            1...15   => self.write_local(index-1, value),
-            16...255 => self.write_global(index-16, value),
-            _        => unreachable!(),
+            0 => {
+                self.stack_pop();
+                self.stack_push(value);
+            }
+            1...15 => self.write_local(index - 1, value),
+            16...255 => self.write_global(index - 16, value),
+            _ => unreachable!(),
         }
     }
 
@@ -360,7 +379,7 @@ impl Zmachine {
                     }
                     // get the abbrev at this addr
                     (_, &Abbrev(num)) => {
-                        let abbrev = self.get_abbrev((num-1) * 32 + zchar);
+                        let abbrev = self.get_abbrev((num - 1) * 32 + zchar);
                         zstring.push_str(&abbrev);
                         Alphabet(0)
                     }
@@ -380,13 +399,14 @@ impl Zmachine {
                 index += 2;
 
                 step(((word >> 10) & 0b00011111) as u8);
-                step(((word >> 5)  & 0b00011111) as u8);
-                step( (word        & 0b00011111) as u8);
+                step(((word >> 5) & 0b00011111) as u8);
+                step((word & 0b00011111) as u8);
 
                 // stop bit
-                if word & 0x8000 != 0 { break; }
+                if word & 0x8000 != 0 {
+                    break;
+                }
             }
-
         } // <- drop process closure, ending zstring borrow
 
         zstring
@@ -402,7 +422,9 @@ impl Zmachine {
             length += 2;
 
             // stop bit
-            if word & 0x8000 != 0 { break; }
+            if word & 0x8000 != 0 {
+                break;
+            }
         }
 
         length
@@ -419,8 +441,8 @@ impl Zmachine {
         }
 
         let entry_length = read.byte() as usize;
-        let entry_count  = read.word() as usize;
-        let entry_start  = read.position();
+        let entry_count = read.word() as usize;
+        let entry_start = read.position();
 
         for n in 0..entry_count {
             let addr = entry_start + n * entry_length;
@@ -451,7 +473,8 @@ impl Zmachine {
             input = input.replace(&sep.to_string(), &format!(" {} ", sep))
         }
 
-        let tokens = input.split(' ')
+        let tokens: Vec<_> = input
+            .split_whitespace()
             .filter(|token| !token.is_empty())
             .map(|token| {
                 let offset = found.entry(token).or_insert(0);
@@ -464,7 +487,7 @@ impl Zmachine {
 
                 (dict_addr, token.len(), token_addr)
             })
-            .collect::<Vec<_>>();
+            .collect();
 
         let mut write = self.memory.get_writer(parse_addr + 1);
         write.byte(tokens.len() as u8);
@@ -571,7 +594,9 @@ impl Zmachine {
 
     fn remove_obj(&mut self, object: u16) {
         let parent = self.get_parent(object);
-        if parent == 0 { return; }
+        if parent == 0 {
+            return;
+        }
 
         // fix the tree to patch any holes:
         // 1- if the obj is the first child, make the obj's sibling the new child
@@ -581,7 +606,11 @@ impl Zmachine {
 
         fn get_older(this: &Zmachine, obj: u16, prev: u16) -> u16 {
             let next = this.get_sibling(prev);
-            if next == obj { prev } else { get_older(this, obj, next) }
+            if next == obj {
+                prev
+            } else {
+                get_older(this, obj, next)
+            }
         }
 
         if object == parents_first_child {
@@ -606,7 +635,9 @@ impl Zmachine {
         let parents_first_child = self.get_child(destination);
 
         // skip if object is already in the right place
-        if parents_first_child == object { return; }
+        if parents_first_child == object {
+            return;
+        }
 
         // first remove the object from its position and fix that change
         self.remove_obj(object);
@@ -652,7 +683,7 @@ impl Zmachine {
         let mut root = Object::new(0, self);
 
         // find all top level objects (objects with no parents)
-        for i in 1..self.get_total_object_count()+1 {
+        for i in 1..self.get_total_object_count() + 1 {
             if self.get_parent(i) == 0 {
                 root.children.push(Object::new(i, self));
             }
@@ -667,7 +698,7 @@ impl Zmachine {
     }
 
     fn find_object(&self, name: &str) -> Option<u16> {
-        for i in 1..self.get_total_object_count()+1 {
+        for i in 1..self.get_total_object_count() + 1 {
             if self.get_object_name(i).to_lowercase() == name.to_lowercase() {
                 return Some(i);
             }
@@ -691,7 +722,11 @@ impl Zmachine {
         let byte = self.memory.read_byte(addr);
         let bit = attr % 8;
 
-        if byte & (128 >> bit) != 0 { 1 } else { 0 }
+        if byte & (128 >> bit) != 0 {
+            1
+        } else {
+            0
+        }
     }
 
     fn set_attr(&mut self, object: u16, attr: u16) {
@@ -754,12 +789,14 @@ impl Zmachine {
             num,
             len,
             addr: value_addr,
-            next: value_addr + len as usize
+            next: value_addr + len as usize,
         }
     }
 
     fn find_prop(&self, object: u16, property_number: u16) -> ObjectProperty {
-        if property_number == 0 { return ObjectProperty::zero(); }
+        if property_number == 0 {
+            return ObjectProperty::zero();
+        }
 
         let addr = self.get_object_prop_table_addr(object);
         let str_length = self.memory.read_byte(addr) as usize * 2; // words in name
@@ -772,7 +809,9 @@ impl Zmachine {
         // props are listed in decreasing order, check to make
         // sure the requested property even exists
         while prop.num != 0 && prop.num != property_number {
-            if property_number > prop.num { return ObjectProperty::zero(); }
+            if property_number > prop.num {
+                return ObjectProperty::zero();
+            }
             prop = self.read_object_prop(prop.next);
         }
 
@@ -794,12 +833,18 @@ impl Zmachine {
     fn get_prop_addr(&self, object: u16, property_number: u16) -> usize {
         let prop = self.find_prop(object, property_number);
 
-        if prop.num != 0 { prop.addr } else { 0 }
+        if prop.num != 0 {
+            prop.addr
+        } else {
+            0
+        }
     }
 
     fn get_prop_len(&self, prop_data_addr: usize) -> u8 {
         // weird required edge case
-        if prop_data_addr == 0 { return 0; }
+        if prop_data_addr == 0 {
+            return 0;
+        }
 
         // address given is the property DATA, the property HEADER is right before
         let prop_header = self.memory.read_byte(prop_data_addr - 1);
@@ -865,7 +910,9 @@ impl Zmachine {
             let mut hours = self.read_global(1);
             let minutes = self.read_global(2);
             let am_pm = if hours >= 12 { "PM" } else { "AM" };
-            if hours > 12 { hours -= 12; }
+            if hours > 12 {
+                hours -= 12;
+            }
 
             format!("{:02}:{:02} {}", hours, minutes, am_pm)
         };
@@ -875,7 +922,9 @@ impl Zmachine {
 
     pub fn update_status_bar(&self) {
         // status bar only used in v1-3
-        if self.version > 3 { return; }
+        if self.version > 3 {
+            return;
+        }
 
         let (left, right) = self.get_status();
         self.ui.set_status_bar(&left, &right);
@@ -883,12 +932,12 @@ impl Zmachine {
 
     fn save_state(&self, pc: usize) -> Vec<u8> {
         // save the whole dynamic memory region (between 0 and the start of static)
-        let dynamic  = self.memory.slice(0, self.static_start);
+        let dynamic = self.memory.slice(0, self.static_start);
         let original = self.original_dynamic.as_slice();
-        let frames   = &self.frames;
-        let chksum   = self.memory.read_word(0x1c);
-        let release  = self.memory.read_word(0x02);
-        let serial   = self.memory.read(0x12, 6);
+        let frames = &self.frames;
+        let chksum = self.memory.read_word(0x1c);
+        let release = self.memory.read_word(0x02);
+        let serial = self.memory.read(0x12, 6);
 
         QuetzalSave::make(pc, dynamic, original, frames, chksum, release, serial)
     }
@@ -953,10 +1002,11 @@ impl Zmachine {
     }
 
     fn get_arguments(&mut self, operands: &[Operand]) -> Vec<u16> {
-        operands.iter()
+        operands
+            .iter()
             .map(|operand| match *operand {
-                Operand::Small(val)    => val as u16,
-                Operand::Large(val)    => val,
+                Operand::Small(val) => val as u16,
+                Operand::Large(val) => val,
                 Operand::Variable(val) => self.read_variable(val),
             })
             .collect()
@@ -972,7 +1022,11 @@ impl Zmachine {
     }
 
     fn process_branch(&mut self, branch: &Branch, next: usize, result: u16) {
-        let Branch { address, returns, condition } = *branch;
+        let Branch {
+            address,
+            returns,
+            condition,
+        } = *branch;
         let result = if result >= 1 { 1 } else { 0 };
 
         if let Some(index) = address {
@@ -1022,16 +1076,16 @@ impl Zmachine {
         use self::OperandType::*;
 
         let (opcode, optypes) = match first {
-            0xbe        => (get_opcode(read.byte(), 1000), get_types(&[read.byte()])),
-            0x00...0x1f => (get_opcode(btm_5(first), 0),   vec![Small, Small]),
-            0x20...0x3f => (get_opcode(btm_5(first), 0),   vec![Small, Variable]),
-            0x40...0x5f => (get_opcode(btm_5(first), 0),   vec![Variable, Small]),
-            0x60...0x7f => (get_opcode(btm_5(first), 0),   vec![Variable, Variable]),
+            0xbe => (get_opcode(read.byte(), 1000), get_types(&[read.byte()])),
+            0x00...0x1f => (get_opcode(btm_5(first), 0), vec![Small, Small]),
+            0x20...0x3f => (get_opcode(btm_5(first), 0), vec![Small, Variable]),
+            0x40...0x5f => (get_opcode(btm_5(first), 0), vec![Variable, Small]),
+            0x60...0x7f => (get_opcode(btm_5(first), 0), vec![Variable, Variable]),
             0x80...0x8f => (get_opcode(btm_4(first), 128), vec![Large]),
             0x90...0x9f => (get_opcode(btm_4(first), 128), vec![Small]),
             0xa0...0xaf => (get_opcode(btm_4(first), 128), vec![Variable]),
             0xb0...0xbf => (get_opcode(btm_4(first), 176), vec![]), // OP_0
-            0xc0...0xdf => (get_opcode(btm_5(first), 0),   get_types(&[read.byte()])),
+            0xc0...0xdf => (get_opcode(btm_5(first), 0), get_types(&[read.byte()])),
             0xe0...0xff => {
                 let opcode = get_opcode(btm_5(first), 224);
 
@@ -1042,15 +1096,15 @@ impl Zmachine {
                 }
             }
             _ => unreachable!(),
-
         };
 
-        let operands = optypes.iter()
+        let operands = optypes
+            .iter()
             .map(|optype| match *optype {
-                OperandType::Small    => Operand::Small(read.byte()),
-                OperandType::Large    => Operand::Large(read.word()),
+                OperandType::Small => Operand::Small(read.byte()),
+                OperandType::Large => Operand::Large(read.word()),
                 OperandType::Variable => Operand::Variable(read.byte()),
-                OperandType::Omitted  => unreachable!(),
+                OperandType::Omitted => unreachable!(),
             })
             .collect();
 
@@ -1071,16 +1125,28 @@ impl Zmachine {
             };
 
             // the offset (if two bytes) is a 14 bit unsigned int: 2^14 = 16384
-            let address = if offset > (16384/2) {
+            let address = if offset > (16384 / 2) {
                 Some(read.position() + offset - 16384 - 2)
             } else {
                 Some(read.position() + offset - 2)
             };
 
             match offset {
-                0 => Some(Branch { condition, address: None, returns: Some(0) }),
-                1 => Some(Branch { condition, address: None, returns: Some(1) }),
-                _ => Some(Branch { condition, address, returns: None }),
+                0 => Some(Branch {
+                    condition,
+                    address: None,
+                    returns: Some(0),
+                }),
+                1 => Some(Branch {
+                    condition,
+                    address: None,
+                    returns: Some(1),
+                }),
+                _ => Some(Branch {
+                    condition,
+                    address,
+                    returns: None,
+                }),
             }
         } else {
             None
@@ -1101,7 +1167,16 @@ impl Zmachine {
         let name = Instruction::name(opcode, self.version);
         let next = read.position() + text_length;
 
-        Instruction { addr, opcode, name, operands, store, branch, text, next }
+        Instruction {
+            addr,
+            opcode,
+            name,
+            operands,
+            store,
+            branch,
+            text,
+            next,
+        }
     }
 
     pub fn handle_instruction(&mut self, instr: &Instruction) {
@@ -1113,35 +1188,35 @@ impl Zmachine {
         // Match instructions that return values for storing or branching (or both)
         // `result` is an option. either a matched instruction or none (no match)
         let result = match (instr.opcode, &args[..]) {
-            (OP2_1,   &[a, ref bs..])  => Some( self.do_je(a, bs) ),
-            (OP2_2,   &[a, b])         => Some( self.do_jl(a, b) ),
-            (OP2_3,   &[a, b])         => Some( self.do_jg(a, b) ),
-            (OP2_4,   &[var, value])   => Some( self.do_dec_chk(var, value) ),
-            (OP2_5,   &[var, value])   => Some( self.do_inc_chk(var, value) ),
-            (OP2_6,   &[obj1, obj2])   => Some( self.do_jin(obj1, obj2) ),
-            (OP2_7,   &[map, flags])   => Some( self.do_test(map, flags) ),
-            (OP2_8,   &[a, b])         => Some( self.do_or(a, b) ),
-            (OP2_9,   &[a, b])         => Some( self.do_and(a, b) ),
-            (OP2_10,  &[obj, attr])    => Some( self.do_test_attr(obj, attr) ),
-            (OP2_15,  &[array, index]) => Some( self.do_loadw(array, index) ),
-            (OP2_16,  &[array, index]) => Some( self.do_loadb(array, index) ),
-            (OP2_17,  &[obj, prop])    => Some( self.do_get_prop(obj, prop) ),
-            (OP2_18,  &[obj, prop])    => Some( self.do_get_prop_addr(obj, prop) ),
-            (OP2_19,  &[obj, prop])    => Some( self.do_get_next_prop(obj, prop) ),
-            (OP2_20,  &[a, b])         => Some( self.do_add(a, b) ),
-            (OP2_21,  &[a, b])         => Some( self.do_sub(a, b) ),
-            (OP2_22,  &[a, b])         => Some( self.do_mul(a, b) ),
-            (OP2_23,  &[a, b])         => Some( self.do_div(a, b) ),
-            (OP2_24,  &[a, b])         => Some( self.do_mod(a, b) ),
-            (OP1_128, &[a])            => Some( self.do_jz(a) ),
-            (OP1_129, &[obj])          => Some( self.do_get_sibling(obj) ),
-            (OP1_130, &[obj])          => Some( self.do_get_child(obj) ),
-            (OP1_131, &[obj])          => Some( self.do_get_parent(obj) ),
-            (OP1_132, &[addr])         => Some( self.do_get_prop_len(addr) ),
-            (OP1_142, &[var])          => Some( self.do_load(var) ),
-            (OP1_143, &[value])        => Some( self.do_not(value) ),
-            (OP0_189, &[])             => Some( self.do_verify() ),
-            (VAR_231, &[range])        => Some( self.do_random(range) ),
+            (OP2_1, &[a, ref bs..]) => Some(self.do_je(a, bs)),
+            (OP2_2, &[a, b]) => Some(self.do_jl(a, b)),
+            (OP2_3, &[a, b]) => Some(self.do_jg(a, b)),
+            (OP2_4, &[var, value]) => Some(self.do_dec_chk(var, value)),
+            (OP2_5, &[var, value]) => Some(self.do_inc_chk(var, value)),
+            (OP2_6, &[obj1, obj2]) => Some(self.do_jin(obj1, obj2)),
+            (OP2_7, &[map, flags]) => Some(self.do_test(map, flags)),
+            (OP2_8, &[a, b]) => Some(self.do_or(a, b)),
+            (OP2_9, &[a, b]) => Some(self.do_and(a, b)),
+            (OP2_10, &[obj, attr]) => Some(self.do_test_attr(obj, attr)),
+            (OP2_15, &[array, index]) => Some(self.do_loadw(array, index)),
+            (OP2_16, &[array, index]) => Some(self.do_loadb(array, index)),
+            (OP2_17, &[obj, prop]) => Some(self.do_get_prop(obj, prop)),
+            (OP2_18, &[obj, prop]) => Some(self.do_get_prop_addr(obj, prop)),
+            (OP2_19, &[obj, prop]) => Some(self.do_get_next_prop(obj, prop)),
+            (OP2_20, &[a, b]) => Some(self.do_add(a, b)),
+            (OP2_21, &[a, b]) => Some(self.do_sub(a, b)),
+            (OP2_22, &[a, b]) => Some(self.do_mul(a, b)),
+            (OP2_23, &[a, b]) => Some(self.do_div(a, b)),
+            (OP2_24, &[a, b]) => Some(self.do_mod(a, b)),
+            (OP1_128, &[a]) => Some(self.do_jz(a)),
+            (OP1_129, &[obj]) => Some(self.do_get_sibling(obj)),
+            (OP1_130, &[obj]) => Some(self.do_get_child(obj)),
+            (OP1_131, &[obj]) => Some(self.do_get_parent(obj)),
+            (OP1_132, &[addr]) => Some(self.do_get_prop_len(addr)),
+            (OP1_142, &[var]) => Some(self.do_load(var)),
+            (OP1_143, &[value]) => Some(self.do_not(value)),
+            (OP0_189, &[]) => Some(self.do_verify()),
+            (VAR_231, &[range]) => Some(self.do_random(range)),
             _ => None,
         };
 
@@ -1155,50 +1230,52 @@ impl Zmachine {
 
         // All other instructions (don't produce a value, only a side effect)
         match (instr.opcode, &args[..]) {
-            (OP2_11,  &[obj, attr])  => self.do_set_attr(obj, attr),
-            (OP2_12,  &[obj, attr])  => self.do_clear_attr(obj, attr),
-            (OP2_13,  &[var, value]) => self.do_store(var, value),
-            (OP2_14,  &[obj, dest])  => self.do_insert_obj(obj, dest),
-            (OP2_25,  &[addr, arg])  => self.do_call(instr, addr, &[arg]), // call_2s
-            (OP2_26,  &[addr, arg])  => self.do_call(instr, addr, &[arg]), // call_2n
-            (OP1_133, &[var])        => self.do_inc(var),
-            (OP1_134, &[var])        => self.do_dec(var),
-            (OP1_135, &[addr])       => self.do_print_addr(addr),
-            (OP1_136, &[addr])       => self.do_call(instr, addr, &[]), // call_1s
-            (OP1_137, &[obj])        => self.do_remove_obj(obj),
-            (OP1_138, &[obj])        => self.do_print_obj(obj),
-            (OP1_139, &[value])      => self.do_ret(value),
-            (OP1_140, &[offset])     => self.do_jump(offset, instr),
-            (OP1_141, &[addr])       => self.do_print_paddr(addr),
-            (OP0_176, _)             => self.do_rtrue(),
-            (OP0_177, _)             => self.do_rfalse(),
-            (OP0_178, _)             => self.do_print(instr),
-            (OP0_179, _)             => self.do_print_ret(instr),
-            (OP0_181, _)             => self.do_save(instr),
-            (OP0_182, _)             => self.do_restore(instr),
-            (OP0_183, _)             => self.do_restart(),
-            (OP0_184, _)             => self.do_ret_popped(),
-            (OP0_187, _)             => self.do_newline(),
-            (OP0_188, _)             => self.do_show_status(),
-            (VAR_224, &[addr, ref rest..])    => self.do_call(instr, addr, rest), // call
+            (OP2_11, &[obj, attr]) => self.do_set_attr(obj, attr),
+            (OP2_12, &[obj, attr]) => self.do_clear_attr(obj, attr),
+            (OP2_13, &[var, value]) => self.do_store(var, value),
+            (OP2_14, &[obj, dest]) => self.do_insert_obj(obj, dest),
+            (OP2_25, &[addr, arg]) => self.do_call(instr, addr, &[arg]), // call_2s
+            (OP2_26, &[addr, arg]) => self.do_call(instr, addr, &[arg]), // call_2n
+            (OP1_133, &[var]) => self.do_inc(var),
+            (OP1_134, &[var]) => self.do_dec(var),
+            (OP1_135, &[addr]) => self.do_print_addr(addr),
+            (OP1_136, &[addr]) => self.do_call(instr, addr, &[]), // call_1s
+            (OP1_137, &[obj]) => self.do_remove_obj(obj),
+            (OP1_138, &[obj]) => self.do_print_obj(obj),
+            (OP1_139, &[value]) => self.do_ret(value),
+            (OP1_140, &[offset]) => self.do_jump(offset, instr),
+            (OP1_141, &[addr]) => self.do_print_paddr(addr),
+            (OP0_176, _) => self.do_rtrue(),
+            (OP0_177, _) => self.do_rfalse(),
+            (OP0_178, _) => self.do_print(instr),
+            (OP0_179, _) => self.do_print_ret(instr),
+            (OP0_181, _) => self.do_save(instr),
+            (OP0_182, _) => self.do_restore(instr),
+            (OP0_183, _) => self.do_restart(),
+            (OP0_184, _) => self.do_ret_popped(),
+            (OP0_187, _) => self.do_newline(),
+            (OP0_188, _) => self.do_show_status(),
+            (VAR_224, &[addr, ref rest..]) => self.do_call(instr, addr, rest), // call
             (VAR_225, &[array, index, value]) => self.do_storew(array, index, value),
             (VAR_226, &[array, index, value]) => self.do_storeb(array, index, value),
-            (VAR_227, &[obj, prop, value])    => self.do_put_prop(obj, prop, value),
-            (VAR_228, &[text, parse])         => self.do_sread(instr, text, parse),
-            (VAR_229, &[chr])                 => self.do_print_char(chr),
-            (VAR_230, &[num])                 => self.do_print_num(num),
-            (VAR_232, &[value])               => self.do_push(value),
-            (VAR_233, &[var])                 => self.do_pull(var),
-            (VAR_236, &[addr, ref rest..])    => self.do_call(instr, addr, rest), // call_vs2
-            (VAR_249, &[addr, ref rest..])    => self.do_call(instr, addr, rest), // call_vn
-            (VAR_250, &[addr, ref rest..])    => self.do_call(instr, addr, rest), // call_vn2
+            (VAR_227, &[obj, prop, value]) => self.do_put_prop(obj, prop, value),
+            (VAR_228, &[text, parse]) => self.do_sread(instr, text, parse),
+            (VAR_229, &[chr]) => self.do_print_char(chr),
+            (VAR_230, &[num]) => self.do_print_num(num),
+            (VAR_232, &[value]) => self.do_push(value),
+            (VAR_233, &[var]) => self.do_pull(var),
+            (VAR_236, &[addr, ref rest..]) => self.do_call(instr, addr, rest), // call_vs2
+            (VAR_249, &[addr, ref rest..]) => self.do_call(instr, addr, rest), // call_vn
+            (VAR_250, &[addr, ref rest..]) => self.do_call(instr, addr, rest), // call_vn2
 
             // special cases to no-op: (input/output streams & sound effects)
             // these might be present in some v3 games but aren't implemented yet
             (VAR_243, _) | (VAR_244, _) | (VAR_245, _) => (),
 
-            _ => panic!("\n\nOpcode not yet implemented: {} ({:?}) @ {:#04x}\n\n",
-                        instr.name, instr.opcode, self.pc)
+            _ => panic!(
+                "\n\nOpcode not yet implemented: {} ({:?}) @ {:#04x}\n\n",
+                instr.name, instr.opcode, self.pc
+            ),
         }
 
         // advance pc to the next instruction
@@ -1209,23 +1286,43 @@ impl Zmachine {
     }
 
     fn is_debug_command(&self, input: &str) -> bool {
-        if !input.starts_with('$') { return false; }
+        if !input.starts_with('$') {
+            return false;
+        }
 
-        let parts = input.split(' ').collect::<Vec<_>>();
+        let parts: Vec<_> = input.split_whitespace().collect();
         let command = parts.first().unwrap();
 
         let valid = [
-            "$dump", "$dict", "$tree", "$room", "$you", "$find", "$object",
-            "$parent", "$simple", "$attrs", "$props", "$header", "$history",
-            "$have_attr", "$have_prop", "$undo", "$redo", "$redo", "$teleport",
-            "$steal", "$help"
+            "$dump",
+            "$dict",
+            "$tree",
+            "$room",
+            "$you",
+            "$find",
+            "$object",
+            "$parent",
+            "$simple",
+            "$attrs",
+            "$props",
+            "$header",
+            "$history",
+            "$have_attr",
+            "$have_prop",
+            "$undo",
+            "$redo",
+            "$redo",
+            "$teleport",
+            "$steal",
+            "$help",
         ];
 
         valid.contains(command)
     }
 
     fn print_command_help(&mut self) {
-        self.ui.debug("\
+        self.ui.debug(
+            "\
             Available debug commands: \n\n\
             $dump               (list stack frames and PC) \n\
             $dict               (show games's dictionary) \n\
@@ -1247,41 +1344,44 @@ impl Zmachine {
             $undo \n\
             $redo \n\
             $quit
-        ");
+        ",
+        );
     }
 
     fn handle_debug_command(&mut self, input: &str) -> bool {
         let mut should_ask_again = true;
-        let parts = input.split(' ').collect::<Vec<_>>();
+        let parts: Vec<_> = input.split_whitespace().collect();
         let (command, rest) = parts.split_first().unwrap();
         let arg = &rest.join(" ");
 
         match *command {
-            "$help"   => self.print_command_help(),
-            "$dump"   => self.debug_dump(),
-            "$dict"   => self.debug_dictionary(),
-            "$tree"   => self.debug_object_tree(),
-            "$room"   => self.debug_room(),
-            "$you"    => self.debug_yourself(),
-            "$find"   => self.debug_find_object(arg),
+            "$help" => self.print_command_help(),
+            "$dump" => self.debug_dump(),
+            "$dict" => self.debug_dictionary(),
+            "$tree" => self.debug_object_tree(),
+            "$room" => self.debug_room(),
+            "$you" => self.debug_yourself(),
+            "$find" => self.debug_find_object(arg),
             "$object" => self.debug_object(arg),
             "$parent" => self.debug_parent(arg),
-            "$attrs"  => self.debug_object_attributes(arg),
-            "$props"  => self.debug_object_properties(arg),
+            "$attrs" => self.debug_object_attributes(arg),
+            "$props" => self.debug_object_properties(arg),
             "$simple" => self.debug_object_simple(arg.parse().unwrap_or(1)),
             "$header" => self.debug_header(),
-            "$history"   => self.debug_history(),
+            "$history" => self.debug_history(),
             "$have_attr" => self.debug_have_attribute(arg),
             "$have_prop" => self.debug_have_property(arg),
-            "$steal"     => self.debug_steal(arg),
-            "$teleport"  => self.debug_teleport(arg),
+            "$steal" => self.debug_steal(arg),
+            "$teleport" => self.debug_teleport(arg),
             "$quit" => process::exit(0),
             // if undo/redo fails, should ask for input again
             // if they succeed, do nothing because zmachine state changed
-            "$undo" => { should_ask_again = !self.undo() },
-            "$redo" => { should_ask_again = !self.redo() },
+            "$undo" => should_ask_again = !self.undo(),
+            "$redo" => should_ask_again = !self.redo(),
             // unrecognized commands should ask for user input again
-            _ => { should_ask_again = false; }
+            _ => {
+                should_ask_again = false;
+            }
         }
 
         should_ask_again
@@ -1295,7 +1395,9 @@ impl Zmachine {
         // continue instructions until the quit instruction
         loop {
             let instr = self.decode_instruction(self.pc);
-            if instr.opcode == Opcode::OP0_186 { break; }
+            if instr.opcode == Opcode::OP0_186 {
+                break;
+            }
 
             self.handle_instruction(&instr);
         }
@@ -1418,22 +1520,33 @@ impl Zmachine {
     }
 }
 
-
 // Instruction handlers
 impl Zmachine {
     // OP2_1
     fn do_je(&self, a: u16, values: &[u16]) -> u16 {
-        if values.iter().any(|x| a == *x) { 1 } else { 0 }
+        if values.iter().any(|x| a == *x) {
+            1
+        } else {
+            0
+        }
     }
 
     // OP2_2
     fn do_jl(&self, a: u16, b: u16) -> u16 {
-        if (a as i16) < (b as i16) { 1 } else { 0 }
+        if (a as i16) < (b as i16) {
+            1
+        } else {
+            0
+        }
     }
 
     // OP2_3
     fn do_jg(&self, a: u16, b: u16) -> u16 {
-        if (a as i16) > (b as i16) { 1 } else { 0 }
+        if (a as i16) > (b as i16) {
+            1
+        } else {
+            0
+        }
     }
 
     // OP2_4
@@ -1441,7 +1554,11 @@ impl Zmachine {
         let after = self.read_indirect_variable(var as u8) as i16 - 1;
         self.write_indirect_variable(var as u8, after as u16);
 
-        if after < (value as i16) { 1 } else { 0 }
+        if after < (value as i16) {
+            1
+        } else {
+            0
+        }
     }
 
     // OP2_5
@@ -1449,17 +1566,29 @@ impl Zmachine {
         let after = self.read_indirect_variable(var as u8) as i16 + 1;
         self.write_indirect_variable(var as u8, after as u16);
 
-        if after > (value as i16) { 1 } else { 0 }
+        if after > (value as i16) {
+            1
+        } else {
+            0
+        }
     }
 
     // OP2_6
     fn do_jin(&self, obj1: u16, obj2: u16) -> u16 {
-        if self.get_parent(obj1) == obj2 { 1 } else { 0 }
+        if self.get_parent(obj1) == obj2 {
+            1
+        } else {
+            0
+        }
     }
 
     // OP2_7
     fn do_test(&self, bitmap: u16, flags: u16) -> u16 {
-        if bitmap & flags == flags { 1 } else { 0 }
+        if bitmap & flags == flags {
+            1
+        } else {
+            0
+        }
     }
 
     // OP2_8
@@ -1547,10 +1676,13 @@ impl Zmachine {
         (a as i16 % b as i16) as u16
     }
 
-
     // OP1_128
     fn do_jz(&self, a: u16) -> u16 {
-        if a == 0 { 1 } else { 0 }
+        if a == 0 {
+            1
+        } else {
+            0
+        }
     }
 
     // OP1_129
@@ -1637,7 +1769,6 @@ impl Zmachine {
         !value
     }
 
-
     // OP0_176
     fn do_rtrue(&mut self) {
         self.return_from_routine(1);
@@ -1674,8 +1805,8 @@ impl Zmachine {
         let mut file;
 
         match input.to_lowercase().as_ref() {
-            ""|"yes"|"y" => path.push(&self.save_name),
-            "no"|"n"|"cancel" => {
+            "" | "yes" | "y" => path.push(&self.save_name),
+            "no" | "n" | "cancel" => {
                 self.process_result(instr, 0);
                 return;
             }
@@ -1708,7 +1839,6 @@ impl Zmachine {
         self.process_result(instr, 1);
     }
 
-
     // OP0_182
     fn do_restore(&mut self, instr: &Instruction) {
         let prompt = format!("\nFilename [{}]: ", self.save_name);
@@ -1720,8 +1850,8 @@ impl Zmachine {
         let mut file;
 
         match input.to_lowercase().as_ref() {
-            ""|"yes"|"y" => path.push(&self.save_name),
-            "no"|"n"|"cancel" => {
+            "" | "yes" | "y" => path.push(&self.save_name),
+            "no" | "n" | "cancel" => {
                 self.process_result(instr, 0);
                 return;
             }
@@ -1740,7 +1870,8 @@ impl Zmachine {
         self.save_name = path.file_name().unwrap().to_string_lossy().into_owned();
 
         // restore program counter position, stack frames, and dynamic memory
-        file.read_to_end(&mut data).expect("Error reading save file");
+        file.read_to_end(&mut data)
+            .expect("Error reading save file");
         self.restore_state(data.as_slice());
         self.process_restore_result();
     }
@@ -1783,7 +1914,6 @@ impl Zmachine {
         self.return_from_routine(value);
     }
 
-
     // OP0_187
     fn do_newline(&mut self) {
         self.ui.print("\n");
@@ -1798,7 +1928,6 @@ impl Zmachine {
     fn do_verify(&self) -> u16 {
         1
     }
-
 
     // All calls:
     // OP2_25, OP2_26, OP1_136, VAR_224, VAR_236, VAR_249, VAR_250
@@ -1824,7 +1953,7 @@ impl Zmachine {
         for _ in 0..count {
             match self.version {
                 1...4 => locals.push(read.word()),
-                _     => locals.push(0),
+                _ => locals.push(0),
             };
         }
 
@@ -1842,7 +1971,8 @@ impl Zmachine {
 
     // VAR_226
     fn do_storeb(&mut self, array: u16, index: u16, value: u16) {
-        self.memory.write_byte((array + index) as usize, value as u8);
+        self.memory
+            .write_byte((array + index) as usize, value as u8);
     }
 
     // VAR_227
@@ -1888,12 +2018,14 @@ impl Zmachine {
     }
 
     fn do_sread_second(&mut self, text_addr: u16, parse_addr: u16, mut raw: String) {
-        let text_addr  = text_addr as usize;
+        let text_addr = text_addr as usize;
         let parse_addr = parse_addr as usize;
 
         // versions 1-4 have to store an extra 0, so the max length is 1 less
         let mut max_length = self.memory.read_byte(text_addr as usize);
-        if self.version <= 4 { max_length -= 1; }
+        if self.version <= 4 {
+            max_length -= 1;
+        }
 
         raw.truncate(max_length as usize);
         let input = &raw.to_lowercase();
@@ -1953,25 +2085,27 @@ impl Zmachine {
     }
 }
 
-
 // debug functions
 #[allow(dead_code)]
 impl Zmachine {
     fn debug_header(&mut self) {
-        let version    = self.memory.read_byte(0x00);
-        let release    = self.memory.read_word(0x02);
+        let version = self.memory.read_byte(0x00);
+        let release = self.memory.read_word(0x02);
         let initial_pc = self.memory.read_word(0x06);
-        let checksum   = self.memory.read_word(0x1C);
+        let checksum = self.memory.read_word(0x1C);
 
         let serial = self.memory.read(0x12, 6).to_vec();
         let ascii = String::from_utf8_lossy(&serial[..]);
 
-        self.ui.debug(&format!("\
-            Version: {} \n\
-            Release: {} / Serial: {} \n\
-            Checksum: {:#x} \n\
-            Initial PC: {:#x} \n\
-        ", version, release, ascii, checksum, initial_pc));
+        self.ui.debug(&format!(
+            "\
+             Version: {} \n\
+             Release: {} / Serial: {} \n\
+             Checksum: {:#x} \n\
+             Initial PC: {:#x} \n\
+             ",
+            version, release, ascii, checksum, initial_pc
+        ));
     }
 
     fn debug_dictionary(&mut self) {
@@ -1980,7 +2114,11 @@ impl Zmachine {
         words.sort();
 
         let width = words.iter().fold(0, |longest, word| {
-            if word.len() > longest { word.len() } else { longest }
+            if word.len() > longest {
+                word.len()
+            } else {
+                longest
+            }
         });
 
         for word in &words {
@@ -2011,20 +2149,35 @@ impl Zmachine {
         if self.version <= 3 {
             self.ui.debug(&format!(
                 "Attributes: {:08b} {:08b} {:08b} {:08b}",
-                read.byte(), read.byte(), read.byte(), read.byte()));
+                read.byte(),
+                read.byte(),
+                read.byte(),
+                read.byte()
+            ));
 
             self.ui.debug(&format!(
                 "Parent: {}, Sibling: {}, Child: {}",
-                read.byte(), read.byte(), read.byte()));
+                read.byte(),
+                read.byte(),
+                read.byte()
+            ));
         } else {
             self.ui.debug(&format!(
                 "Attributes: {:08b} {:08b} {:08b} {:08b} {:08b} {:08b}",
-                read.byte(), read.byte(), read.byte(), read.byte(),
-                read.byte(), read.byte()));
+                read.byte(),
+                read.byte(),
+                read.byte(),
+                read.byte(),
+                read.byte(),
+                read.byte()
+            ));
 
             self.ui.debug(&format!(
                 "Parent: {}, Sibling: {}, Child: {}",
-                read.word(), read.word(), read.word()));
+                read.word(),
+                read.word(),
+                read.word()
+            ));
         }
 
         let prop_addr = read.word() as usize;
@@ -2037,7 +2190,8 @@ impl Zmachine {
             String::new()
         };
 
-        self.ui.debug(&format!("{} (len: {})\n", short_name, text_length));
+        self.ui
+            .debug(&format!("{} (len: {})\n", short_name, text_length));
     }
 
     fn get_object_number(&self, input: &str) -> u16 {
@@ -2052,7 +2206,9 @@ impl Zmachine {
 
     fn debug_object(&mut self, input: &str) {
         let num = self.get_object_number(input);
-        if num == 0 { return; }
+        if num == 0 {
+            return;
+        }
 
         let mut obj = Object::new(num, self);
         self.add_object_children(&mut obj);
@@ -2066,7 +2222,9 @@ impl Zmachine {
 
     fn debug_object_properties(&mut self, input: &str) {
         let num = self.get_object_number(input);
-        if num == 0 { return; }
+        if num == 0 {
+            return;
+        }
 
         self.ui.debug(&format!("Object: #{}", num));
 
@@ -2089,7 +2247,9 @@ impl Zmachine {
 
     fn debug_object_attributes(&mut self, input: &str) {
         let num = self.get_object_number(input);
-        if num == 0 { return; }
+        if num == 0 {
+            return;
+        }
 
         let name = self.get_object_name(num);
         let mut attributes = Vec::new();
@@ -2100,11 +2260,14 @@ impl Zmachine {
             }
         }
 
-        self.ui.debug(&format!("{} ({})\n{:?}", name, num, attributes));
+        self.ui
+            .debug(&format!("{} ({})\n{:?}", name, num, attributes));
     }
 
     pub fn debug_object_details(&self, obj_num: u16) -> String {
-        if obj_num == 0 { return String::new(); }
+        if obj_num == 0 {
+            return String::new();
+        }
 
         let mut out = String::from("Properties:\n");
 
@@ -2141,7 +2304,7 @@ impl Zmachine {
         let attr = attr_str.parse().unwrap_or(0);
         let mut objects = Vec::new();
 
-        for obj_num in 1..self.get_total_object_count()+1 {
+        for obj_num in 1..self.get_total_object_count() + 1 {
             if self.test_attr(obj_num, attr) == 1 {
                 objects.push(Object::new(obj_num, self));
             }
@@ -2156,7 +2319,7 @@ impl Zmachine {
         let prop_num = prop_str.parse().unwrap_or(0);
         let mut objects = Vec::new();
 
-        for obj_num in 1..self.get_total_object_count()+1 {
+        for obj_num in 1..self.get_total_object_count() + 1 {
             let prop = self.find_prop(obj_num, prop_num);
 
             if prop.num != 0 {
@@ -2185,7 +2348,9 @@ impl Zmachine {
 
     fn debug_parent(&mut self, input: &str) {
         let num = self.get_object_number(input);
-        if num == 0 { return; }
+        if num == 0 {
+            return;
+        }
 
         let parent_num = self.get_parent(num);
 
@@ -2206,28 +2371,36 @@ impl Zmachine {
     }
 
     fn debug_teleport(&mut self, input: &str) {
-        let you = self.find_yourself().expect("Can't find you in the object tree");
+        let you = self
+            .find_yourself()
+            .expect("Can't find you in the object tree");
         let num = self.get_object_number(input);
 
         if num == 0 {
             self.ui.print("I can't find that room...\n");
             return;
         } else {
-            self.ui.print("Zzzap! Somehow you are in a different place...\n");
+            self.ui
+                .print("Zzzap! Somehow you are in a different place...\n");
         }
 
         self.insert_obj(you, num);
     }
 
     fn debug_steal(&mut self, input: &str) {
-        let you = self.find_yourself().expect("Can't find you in the object tree");
+        let you = self
+            .find_yourself()
+            .expect("Can't find you in the object tree");
         let num = self.get_object_number(input);
 
         if num == 0 {
             self.ui.print("I can't find that object...\n");
             return;
         } else {
-            self.ui.print(&format!("Zzzing! Somehow you are holding the {}...\n", input));
+            self.ui.print(&format!(
+                "Zzzing! Somehow you are holding the {}...\n",
+                input
+            ));
         }
 
         self.insert_obj(num, you);
@@ -2241,17 +2414,20 @@ impl Zmachine {
 
         for (i, state) in self.undos.iter().enumerate() {
             let index = i + 1;
-            self.ui.debug(&format!("    ({}/{}) @ {}", index, total, state.0));
+            self.ui
+                .debug(&format!("    ({}/{}) @ {}", index, total, state.0));
         }
 
         if let Some(ref current) = self.current_state {
             let index = undo_count + 1;
-            self.ui.debug(&format!(" -> ({}/{}) @ {}", index, total, current.0));
+            self.ui
+                .debug(&format!(" -> ({}/{}) @ {}", index, total, current.0));
         }
 
         for (i, state) in self.redos.iter().rev().enumerate() {
             let index = undo_count + i + 2;
-            self.ui.debug(&format!("    ({}/{}) @ {}", index, total, state.0));
+            self.ui
+                .debug(&format!("    ({}/{}) @ {}", index, total, state.0));
         }
     }
 
@@ -2263,7 +2439,7 @@ impl Zmachine {
         for _ in 0..count {
             match self.version {
                 1...4 => locals.push(read.word()),
-                _     => locals.push(0),
+                _ => locals.push(0),
             };
         }
 
@@ -2271,10 +2447,15 @@ impl Zmachine {
         let mut set: HashSet<Instruction> = HashSet::new();
 
         fn follow(zvm: &Zmachine, set: &mut HashSet<Instruction>, instr: Instruction) {
-            if set.contains(&instr) { return }
+            if set.contains(&instr) {
+                return;
+            }
 
             let branch = match instr.branch {
-                Some(Branch { address: Some(addr), .. }) => Some(addr),
+                Some(Branch {
+                    address: Some(addr),
+                    ..
+                }) => Some(addr),
                 _ => None,
             };
 
@@ -2304,6 +2485,6 @@ impl Zmachine {
 
         for instr in &instructions {
             self.ui.debug(&format!("{}", instr));
-        };
+        }
     }
 }

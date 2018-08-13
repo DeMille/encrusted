@@ -1,7 +1,6 @@
 use std::fmt;
 use std::hash;
 
-
 enum_from_primitive! {
     #[allow(non_camel_case_types)]
     #[derive(Clone, Copy, Debug, PartialEq)]
@@ -40,24 +39,23 @@ enum_from_primitive! {
     }
 }
 
-
 #[derive(Debug, PartialEq)]
 pub enum OperandType {
     Small,
     Large,
     Variable,
     Omitted,
-
 }
 
 impl OperandType {
-    pub fn from(bytes: &[u8]) -> Vec<OperandType>{
-        bytes.iter()
+    pub fn from(bytes: &[u8]) -> Vec<OperandType> {
+        bytes
+            .iter()
             .fold(Vec::new(), |mut acc, n| {
                 acc.push((n & 0b11000000) >> 6);
                 acc.push((n & 0b00110000) >> 4);
                 acc.push((n & 0b00001100) >> 2);
-                acc.push( n & 0b00000011);
+                acc.push(n & 0b00000011);
                 acc
             })
             .into_iter()
@@ -66,14 +64,12 @@ impl OperandType {
                 0b01 => OperandType::Small,
                 0b10 => OperandType::Variable,
                 0b11 => OperandType::Omitted,
-                _ => unreachable!("Can't get operand type of: {:08b}", b)
+                _ => unreachable!("Can't get operand type of: {:08b}", b),
             })
             .take_while(|t| *t != OperandType::Omitted)
             .collect()
     }
 }
-
-
 
 #[derive(Debug)]
 pub enum Operand {
@@ -85,20 +81,16 @@ pub enum Operand {
 impl fmt::Display for Operand {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-           Operand::Small(x) => write!(f, "#{:02x}", x),
-           Operand::Large(x) => write!(f, "{:04x}", x),
-           Operand::Variable(x) => {
-               match x {
-                   0      => write!(f, "sp"),
-                   1...15 => write!(f, "local{}", x-1),
-                   _      => write!(f, "g{:02x}", x-16),
-               }
-           }
-       }
+            Operand::Small(x) => write!(f, "#{:02x}", x),
+            Operand::Large(x) => write!(f, "{:04x}", x),
+            Operand::Variable(x) => match x {
+                0 => write!(f, "sp"),
+                1...15 => write!(f, "local{}", x - 1),
+                _ => write!(f, "g{:02x}", x - 16),
+            },
+        }
     }
 }
-
-
 
 #[derive(Debug)]
 pub struct Branch {
@@ -107,18 +99,16 @@ pub struct Branch {
     pub returns: Option<u16>,
 }
 
-
-
 #[derive(Debug)]
 pub struct Instruction {
-    pub addr:     usize,
-    pub opcode:   Opcode,
-    pub name:     String,
+    pub addr: usize,
+    pub opcode: Opcode,
+    pub name: String,
     pub operands: Vec<Operand>,
-    pub store:    Option<u8>,
-    pub branch:   Option<Branch>,
-    pub text:     Option<String>,
-    pub next:     usize,
+    pub store: Option<u8>,
+    pub branch: Option<Branch>,
+    pub text: Option<String>,
+    pub next: usize,
 }
 
 impl Instruction {
@@ -127,12 +117,11 @@ impl Instruction {
 
         match opcode {
             // does a store in any version
-            OP2_8    | OP2_9    | OP2_15   | OP2_16   | OP2_17   | OP2_18   |
-            OP2_19   | OP2_20   | OP2_21   | OP2_22   | OP2_23   | OP2_24   |
-            OP2_25   | OP1_129  | OP1_130  | OP1_131  | OP1_132  | OP1_136  |
-            OP1_142  | VAR_224  | VAR_231  | VAR_236  | VAR_246  | VAR_247  |
-            VAR_248  | EXT_1000 | EXT_1001 | EXT_1002 | EXT_1003 | EXT_1004 |
-            EXT_1009 | EXT_1010 | EXT_1019 | EXT_1029 => true,
+            OP2_8 | OP2_9 | OP2_15 | OP2_16 | OP2_17 | OP2_18 | OP2_19 | OP2_20 | OP2_21
+            | OP2_22 | OP2_23 | OP2_24 | OP2_25 | OP1_129 | OP1_130 | OP1_131 | OP1_132
+            | OP1_136 | OP1_142 | VAR_224 | VAR_231 | VAR_236 | VAR_246 | VAR_247 | VAR_248
+            | EXT_1000 | EXT_1001 | EXT_1002 | EXT_1003 | EXT_1004 | EXT_1009 | EXT_1010
+            | EXT_1019 | EXT_1029 => true,
             // only stores in certain versions
             OP1_143 => version < 5,
             OP0_181 => version == 4, // missing * in spec?
@@ -149,9 +138,10 @@ impl Instruction {
 
         match opcode {
             // does a branch in any version
-            OP2_1    | OP2_2    | OP2_3    | OP2_4   | OP2_5   | OP2_6   | OP2_7   |
-            OP2_10   | OP1_128  | OP1_129  | OP1_130 | OP0_189 | OP0_191 | VAR_247 |
-            VAR_255  | EXT_1006 | EXT_1024 | EXT_1027 => true,
+            OP2_1 | OP2_2 | OP2_3 | OP2_4 | OP2_5 | OP2_6 | OP2_7 | OP2_10 | OP1_128 | OP1_129
+            | OP1_130 | OP0_189 | OP0_191 | VAR_247 | VAR_255 | EXT_1006 | EXT_1024 | EXT_1027 => {
+                true
+            }
             // only branches in certain versions
             OP0_181 => version < 4,
             OP0_182 => version < 4,
@@ -172,129 +162,145 @@ impl Instruction {
         use self::Opcode::*;
 
         match opcode {
-            OP2_1     => "je",
-            OP2_2     => "jl",
-            OP2_3     => "jg",
-            OP2_4     => "dec_chk",
-            OP2_5     => "inc_chk",
-            OP2_6     => "jin",
-            OP2_7     => "test",
-            OP2_8     => "or",
-            OP2_9     => "and",
-            OP2_10    => "test_attr",
-            OP2_11    => "set_attr",
-            OP2_12    => "clear_attr",
-            OP2_13    => "store",
-            OP2_14    => "insert_obj",
-            OP2_15    => "loadw",
-            OP2_16    => "loadb",
-            OP2_17    => "get_prop",
-            OP2_18    => "get_prop_addr",
-            OP2_19    => "get_next_prop",
-            OP2_20    => "add",
-            OP2_21    => "sub",
-            OP2_22    => "mul",
-            OP2_23    => "div",
-            OP2_24    => "mod",
-            OP2_25    => "call_2s",
-            OP2_26    => "call_2n",
-            OP2_27    => "set_colour",
-            OP2_28    => "throw",
-            OP1_128   => "jz",
-            OP1_129   => "get_sibling",
-            OP1_130   => "get_child",
-            OP1_131   => "get_parent",
-            OP1_132   => "get_prop_len",
-            OP1_133   => "inc",
-            OP1_134   => "dec",
-            OP1_135   => "print_addr",
-            OP1_136   => "call_1s",
-            OP1_137   => "remove_obj",
-            OP1_138   => "print_obj",
-            OP1_139   => "ret",
-            OP1_140   => "jump",
-            OP1_141   => "print_paddr",
-            OP1_142   => "load",
+            OP2_1 => "je",
+            OP2_2 => "jl",
+            OP2_3 => "jg",
+            OP2_4 => "dec_chk",
+            OP2_5 => "inc_chk",
+            OP2_6 => "jin",
+            OP2_7 => "test",
+            OP2_8 => "or",
+            OP2_9 => "and",
+            OP2_10 => "test_attr",
+            OP2_11 => "set_attr",
+            OP2_12 => "clear_attr",
+            OP2_13 => "store",
+            OP2_14 => "insert_obj",
+            OP2_15 => "loadw",
+            OP2_16 => "loadb",
+            OP2_17 => "get_prop",
+            OP2_18 => "get_prop_addr",
+            OP2_19 => "get_next_prop",
+            OP2_20 => "add",
+            OP2_21 => "sub",
+            OP2_22 => "mul",
+            OP2_23 => "div",
+            OP2_24 => "mod",
+            OP2_25 => "call_2s",
+            OP2_26 => "call_2n",
+            OP2_27 => "set_colour",
+            OP2_28 => "throw",
+            OP1_128 => "jz",
+            OP1_129 => "get_sibling",
+            OP1_130 => "get_child",
+            OP1_131 => "get_parent",
+            OP1_132 => "get_prop_len",
+            OP1_133 => "inc",
+            OP1_134 => "dec",
+            OP1_135 => "print_addr",
+            OP1_136 => "call_1s",
+            OP1_137 => "remove_obj",
+            OP1_138 => "print_obj",
+            OP1_139 => "ret",
+            OP1_140 => "jump",
+            OP1_141 => "print_paddr",
+            OP1_142 => "load",
             // actually 2 different operations:
-            OP1_143   => if version < 4 { "not" } else { "call_1n" },
-            OP0_176   => "rtrue",
-            OP0_177   => "rfalse",
-            OP0_178   => "print",
-            OP0_179   => "print_ret",
-            OP0_180   => "nop",
-            OP0_181   => "save",
-            OP0_182   => "restore",
-            OP0_183   => "restart",
-            OP0_184   => "ret_popped",
+            OP1_143 => if version < 4 {
+                "not"
+            } else {
+                "call_1n"
+            },
+            OP0_176 => "rtrue",
+            OP0_177 => "rfalse",
+            OP0_178 => "print",
+            OP0_179 => "print_ret",
+            OP0_180 => "nop",
+            OP0_181 => "save",
+            OP0_182 => "restore",
+            OP0_183 => "restart",
+            OP0_184 => "ret_popped",
             // actually 2 different operations:
-            OP0_185   => if version < 4 { "pop" } else { "catch" },
-            OP0_186   => "quit",
-            OP0_187   => "new_line",
-            OP0_188   => "show_status",
-            OP0_189   => "verify",
-            OP0_191   => "piracy",
+            OP0_185 => if version < 4 {
+                "pop"
+            } else {
+                "catch"
+            },
+            OP0_186 => "quit",
+            OP0_187 => "new_line",
+            OP0_188 => "show_status",
+            OP0_189 => "verify",
+            OP0_191 => "piracy",
             // "call" is the same as "call_vs" (name changed to remove ambiguity)
-            VAR_224   => if version < 4 { "call" } else { "call_vs" },
-            VAR_225   => "storew",
-            VAR_226   => "storeb",
-            VAR_227   => "put_prop",
+            VAR_224 => if version < 4 {
+                "call"
+            } else {
+                "call_vs"
+            },
+            VAR_225 => "storew",
+            VAR_226 => "storeb",
+            VAR_227 => "put_prop",
             // "sread", "aread", plain "read" are really all the same thing:
-            VAR_228   => if version < 4 { "sread" } else { "aread" },
-            VAR_229   => "print_char",
-            VAR_230   => "print_num",
-            VAR_231   => "random",
-            VAR_232   => "push",
-            VAR_233   => "pull",
-            VAR_234   => "split_window",
-            VAR_235   => "set_window",
-            VAR_236   => "call_vs2",
-            VAR_237   => "erase_window",
-            VAR_238   => "erase_line",
-            VAR_239   => "set_cursor",
-            VAR_240   => "get_cursor",
-            VAR_241   => "set_text_style",
-            VAR_242   => "buffer_mode",
-            VAR_243   => "output_stream",
-            VAR_244   => "input_stream",
-            VAR_245   => "sound_effect",
-            VAR_246   => "read_char",
-            VAR_247   => "scan_table",
-            VAR_248   => "not",
-            VAR_249   => "call_vn",
-            VAR_250   => "call_vn2",
-            VAR_251   => "tokenise",
-            VAR_252   => "encode_text",
-            VAR_253   => "copy_table",
-            VAR_254   => "print_table",
-            VAR_255   => "check_arg_count",
-            EXT_1000  => "save",
-            EXT_1001  => "restore",
-            EXT_1002  => "log_shift",
-            EXT_1003  => "art_shift",
-            EXT_1004  => "set_font",
-            EXT_1005  => "draw_picture",
-            EXT_1006  => "picture_data",
-            EXT_1007  => "erase_picture",
-            EXT_1008  => "set_margins",
-            EXT_1009  => "save_undo",
-            EXT_1010  => "restore_undo",
-            EXT_1011  => "print_unicode",
-            EXT_1012  => "check_unicode",
-            EXT_1013  => "set_true_colour",
-            EXT_1016  => "move_window",
-            EXT_1017  => "window_size",
-            EXT_1018  => "window_style",
-            EXT_1019  => "get_wind_prop",
-            EXT_1020  => "scroll_window",
-            EXT_1021  => "pop_stack",
-            EXT_1022  => "read_mouse",
-            EXT_1023  => "mouse_window",
-            EXT_1024  => "push_stack",
-            EXT_1025  => "put_wind_prop",
-            EXT_1026  => "print_form",
-            EXT_1027  => "make_menu",
-            EXT_1028  => "picture_table",
-            EXT_1029  => "buffer_screen",
+            VAR_228 => if version < 4 {
+                "sread"
+            } else {
+                "aread"
+            },
+            VAR_229 => "print_char",
+            VAR_230 => "print_num",
+            VAR_231 => "random",
+            VAR_232 => "push",
+            VAR_233 => "pull",
+            VAR_234 => "split_window",
+            VAR_235 => "set_window",
+            VAR_236 => "call_vs2",
+            VAR_237 => "erase_window",
+            VAR_238 => "erase_line",
+            VAR_239 => "set_cursor",
+            VAR_240 => "get_cursor",
+            VAR_241 => "set_text_style",
+            VAR_242 => "buffer_mode",
+            VAR_243 => "output_stream",
+            VAR_244 => "input_stream",
+            VAR_245 => "sound_effect",
+            VAR_246 => "read_char",
+            VAR_247 => "scan_table",
+            VAR_248 => "not",
+            VAR_249 => "call_vn",
+            VAR_250 => "call_vn2",
+            VAR_251 => "tokenise",
+            VAR_252 => "encode_text",
+            VAR_253 => "copy_table",
+            VAR_254 => "print_table",
+            VAR_255 => "check_arg_count",
+            EXT_1000 => "save",
+            EXT_1001 => "restore",
+            EXT_1002 => "log_shift",
+            EXT_1003 => "art_shift",
+            EXT_1004 => "set_font",
+            EXT_1005 => "draw_picture",
+            EXT_1006 => "picture_data",
+            EXT_1007 => "erase_picture",
+            EXT_1008 => "set_margins",
+            EXT_1009 => "save_undo",
+            EXT_1010 => "restore_undo",
+            EXT_1011 => "print_unicode",
+            EXT_1012 => "check_unicode",
+            EXT_1013 => "set_true_colour",
+            EXT_1016 => "move_window",
+            EXT_1017 => "window_size",
+            EXT_1018 => "window_style",
+            EXT_1019 => "get_wind_prop",
+            EXT_1020 => "scroll_window",
+            EXT_1021 => "pop_stack",
+            EXT_1022 => "read_mouse",
+            EXT_1023 => "mouse_window",
+            EXT_1024 => "push_stack",
+            EXT_1025 => "put_wind_prop",
+            EXT_1026 => "print_form",
+            EXT_1027 => "make_menu",
+            EXT_1028 => "picture_table",
+            EXT_1029 => "buffer_screen",
         }.to_string()
     }
 }
@@ -306,8 +312,8 @@ impl Instruction {
         // Some instructions never advance to the next instruction:
         // throw, ret, jump, rtrue, rfalse, print_ret, restart, and ret_popped
         match self.opcode {
-            OP2_28  | OP1_139 | OP1_140 | OP0_176 | OP0_177 | OP0_179 | OP0_183 |
-            OP0_184 | OP0_186  => false,
+            OP2_28 | OP1_139 | OP1_140 | OP0_176 | OP0_177 | OP0_179 | OP0_183 | OP0_184
+            | OP0_186 => false,
             _ => true,
         }
     }
@@ -323,27 +329,27 @@ impl Instruction {
     }
 
     pub fn should_advance(&self, version: u8) -> bool {
-        !self.does_call(version) &&
-        self.opcode != Opcode::OP0_181 &&
-        self.opcode != Opcode::OP0_182
+        !self.does_call(version) && self.opcode != Opcode::OP0_181 && self.opcode != Opcode::OP0_182
     }
 }
 
 impl hash::Hash for Instruction {
-    fn hash<H>(&self, state: &mut H) where H: hash::Hasher {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: hash::Hasher,
+    {
         state.write_usize(self.addr);
         state.finish();
     }
 }
 
 impl PartialEq for Instruction {
-  fn eq(&self, other: &Instruction) -> bool {
-    self.addr == other.addr
-  }
+    fn eq(&self, other: &Instruction) -> bool {
+        self.addr == other.addr
+    }
 }
 
 impl Eq for Instruction {}
-
 
 impl fmt::Display for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -355,13 +361,18 @@ impl fmt::Display for Instruction {
 
         if let Some(x) = self.store {
             match x {
-                0      => write!(f, " -> sp"),
-                1...15 => write!(f, " -> local{}", x-1),
-                _      => write!(f, " -> g{:02x}", x-16),
+                0 => write!(f, " -> sp"),
+                1...15 => write!(f, " -> local{}", x - 1),
+                _ => write!(f, " -> g{:02x}", x - 16),
             }?;
         };
 
-        if let Some(Branch { address, returns, condition }) = self.branch {
+        if let Some(Branch {
+            address,
+            returns,
+            condition,
+        }) = self.branch
+        {
             match (address, returns, condition) {
                 (Some(addr), _, 1) => write!(f, " ?{:04x}", addr),
                 (Some(addr), _, 0) => write!(f, " ?~{:04x}", addr),

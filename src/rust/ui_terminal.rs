@@ -1,20 +1,19 @@
 #![allow(dead_code)]
 
+use std::boxed::Box;
 use std::io;
 use std::io::Write;
-use std::boxed::Box;
 
-use term_size;
 use regex::Regex;
+use term_size;
 
 use traits::UI;
 
-
 lazy_static! {
     static ref ANSI_RE: Regex = Regex::new(
-        r"[\x1b\x9b][\[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-PRZcf-nqry=><]").unwrap();
+        r"[\x1b\x9b][\[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-PRZcf-nqry=><]"
+    ).unwrap();
 }
-
 
 #[derive(Debug)]
 pub struct TerminalUI {
@@ -40,9 +39,15 @@ impl TerminalUI {
 impl UI for TerminalUI {
     fn new() -> Box<TerminalUI> {
         if let Some((w, _)) = term_size::dimensions() {
-            Box::new(TerminalUI { width: w, x_position: 0 })
+            Box::new(TerminalUI {
+                width: w,
+                x_position: 0,
+            })
         } else {
-            Box::new(TerminalUI { width: 0, x_position: 0 })
+            Box::new(TerminalUI {
+                width: 0,
+                x_position: 0,
+            })
         }
     }
 
@@ -58,14 +63,14 @@ impl UI for TerminalUI {
             return;
         }
 
-        let lines = text.split('\n').collect::<Vec<_>>();
+        let lines: Vec<_> = text.lines().collect();
         let num_lines = lines.len();
 
         // implements some word-wrapping so words don't get split across lines
         lines.iter().enumerate().for_each(|(i, line)| {
             // skip if this line is just the result of a "\n"
             if !line.is_empty() {
-                let words = line.split(' ').collect::<Vec<_>>();
+                let words: Vec<_> = line.split_whitespace().collect();
                 let num_words = words.len();
 
                 // check that each word can fit on the line before printing it.
@@ -81,7 +86,7 @@ impl UI for TerminalUI {
                     print!("{}", word);
 
                     // add spaces back in if we can (an not on the last element)
-                    if i < num_words-1 && self.x_position < self.width {
+                    if i < num_words - 1 && self.x_position < self.width {
                         self.x_position += 1;
                         print!(" ");
                     }
@@ -89,7 +94,7 @@ impl UI for TerminalUI {
             }
 
             // add newlines back that were removed from split
-            if i < num_lines-1 {
+            if i < num_lines - 1 {
                 print!("\n");
                 self.x_position = 0;
             }
@@ -115,11 +120,17 @@ impl UI for TerminalUI {
 
     fn get_user_input(&self) -> String {
         let mut input = String::new();
-        io::stdin().read_line(&mut input).expect("Error reading input");
+        io::stdin()
+            .read_line(&mut input)
+            .expect("Error reading input");
 
         // trim, strip and control sequences that might have gotten in,
         // and then trim once more to get rid of any excess whitespace
-        ANSI_RE.replace_all(input.trim(), "").to_string().trim().to_string()
+        ANSI_RE
+            .replace_all(input.trim(), "")
+            .to_string()
+            .trim()
+            .to_string()
     }
 
     fn reset(&self) {
