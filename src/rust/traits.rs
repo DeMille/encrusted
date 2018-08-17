@@ -1,5 +1,7 @@
 pub trait UI {
-    fn new() -> Box<Self> where Self: Sized;
+    fn new() -> Box<Self>
+    where
+        Self: Sized;
     fn clear(&self);
     fn print(&mut self, text: &str);
     fn debug(&mut self, text: &str);

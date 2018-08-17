@@ -4,8 +4,8 @@ use std::fmt::Write;
 
 use serde_json;
 
-use traits::UI;
 use js_message;
+use traits::UI;
 
 #[derive(Debug)]
 enum Token {
@@ -22,9 +22,7 @@ pub struct WebUI {
 
 impl UI for WebUI {
     fn new() -> Box<WebUI> {
-        Box::new(WebUI {
-            buffer: Vec::new(),
-        })
+        Box::new(WebUI { buffer: Vec::new() })
     }
 
     fn print(&mut self, text: &str) {
@@ -75,7 +73,11 @@ impl UI for WebUI {
         let mut html = String::new();
 
         for (index, item) in self.buffer.iter().enumerate() {
-            let prev = if index == 0 { None } else { self.buffer.get(index - 1) };
+            let prev = if index == 0 {
+                None
+            } else {
+                self.buffer.get(index - 1)
+            };
             let next = self.buffer.get(index + 1);
 
             match *item {
@@ -132,5 +134,7 @@ impl UI for WebUI {
 
     fn clear(&self) {}
     fn reset(&self) {}
-    fn get_user_input(&self) -> String { unimplemented!(); }
+    fn get_user_input(&self) -> String {
+        unimplemented!();
+    }
 }

@@ -1,19 +1,16 @@
 use std::fmt;
 
-
 #[derive(Debug)]
 pub struct Frame {
-    stack:      Vec<u16>,
-    locals:     Vec<u16>,
-    arg_count:  u8,
+    stack: Vec<u16>,
+    locals: Vec<u16>,
+    arg_count: u8,
     pub resume: usize,
-    pub store:  Option<u8>,
+    pub store: Option<u8>,
 }
 
 impl Frame {
-    pub fn new(resume: usize, store: Option<u8>, mut locals: Vec<u16>,
-               arguments: &[u16]) -> Frame {
-
+    pub fn new(resume: usize, store: Option<u8>, mut locals: Vec<u16>, arguments: &[u16]) -> Frame {
         for i in 0..locals.len() {
             if arguments.len() > i {
                 locals[i] = arguments[i];
@@ -25,17 +22,17 @@ impl Frame {
             arg_count: arguments.len() as u8,
             locals,
             resume,
-            store
+            store,
         }
     }
 
     pub fn empty() -> Frame {
         Frame {
-            stack:     Vec::new(),
-            locals:    Vec::new(),
+            stack: Vec::new(),
+            locals: Vec::new(),
             arg_count: 0,
-            resume:    0,
-            store:     None
+            resume: 0,
+            store: None,
         }
     }
 
@@ -44,7 +41,7 @@ impl Frame {
         let mut resume = 0;
         resume += (bytes[0] as usize) << 16;
         resume += (bytes[1] as usize) << 8;
-        resume +=  bytes[2] as usize;
+        resume += bytes[2] as usize;
 
         let flags = bytes[3];
         let has_store = (flags & 0b00010000) == 0;
@@ -56,12 +53,14 @@ impl Frame {
         let mut arg_count = 0;
 
         for bit in 0..7 {
-            if (mask & (1 << bit)) != 0 { arg_count += 1; }
+            if (mask & (1 << bit)) != 0 {
+                arg_count += 1;
+            }
         }
 
         let mut stack_length = 0;
         stack_length += (bytes[6] as u16) << 8;
-        stack_length +=  bytes[7] as u16;
+        stack_length += bytes[7] as u16;
 
         let mut locals = Vec::new();
         let mut stack = Vec::new();
@@ -70,7 +69,7 @@ impl Frame {
         for offset in 0..num_locals as usize {
             let mut word = 0;
             word += (bytes[index + offset * 2] as u16) << 8;
-            word +=  bytes[index + offset * 2 + 1] as u16;
+            word += bytes[index + offset * 2 + 1] as u16;
 
             locals.push(word);
         }
@@ -80,12 +79,18 @@ impl Frame {
         for offset in 0..stack_length as usize {
             let mut word = 0;
             word += (bytes[index + offset * 2] as u16) << 8;
-            word +=  bytes[index + offset * 2 + 1] as u16;
+            word += bytes[index + offset * 2 + 1] as u16;
 
             stack.push(word);
         }
 
-        Frame { stack, locals, arg_count, resume, store }
+        Frame {
+            stack,
+            locals,
+            arg_count,
+            resume,
+            store,
+        }
     }
 
     pub fn read_local(&self, index: u8) -> u16 {
@@ -125,7 +130,9 @@ impl Frame {
             let mut out = String::from("[");
 
             for (i, val) in values.iter().enumerate() {
-                if i != 0 { out.push_str(", ") }
+                if i != 0 {
+                    out.push_str(", ")
+                }
                 out.push_str(&format!("{:04x}", val));
             }
 
@@ -133,11 +140,13 @@ impl Frame {
             out
         };
 
-        format!("Locals: {} Stack: {} -> {:?} @ {:04x}",
+        format!(
+            "Locals: {} Stack: {} -> {:?} @ {:04x}",
             &stringify(&self.locals),
             &stringify(&self.stack),
             self.store,
-            self.resume)
+            self.resume
+        )
     }
 
     pub fn to_vec(&self) -> Vec<u8> {
@@ -146,10 +155,12 @@ impl Frame {
         // write pc addr as 3 bytes
         bytes.push(((self.resume & 0xFF0000) >> 16) as u8);
         bytes.push(((self.resume & 0x00FF00) >> 8) as u8);
-        bytes.push(( self.resume & 0x0000FF) as u8);
+        bytes.push((self.resume & 0x0000FF) as u8);
 
         let mut flags = self.locals.len() as u8; // 0b0000vvvv
-        if self.store.is_some() { flags += 0b00010000; }
+        if self.store.is_some() {
+            flags += 0b00010000;
+        }
 
         let mut args_supplied = 0b00000000;
         for bit in 0..self.arg_count {
@@ -162,16 +173,16 @@ impl Frame {
 
         let stack_length = self.stack.len();
         bytes.push(((stack_length & 0xFF00) >> 8) as u8);
-        bytes.push( (stack_length & 0x00FF) as u8);
+        bytes.push((stack_length & 0x00FF) as u8);
 
         self.locals.iter().for_each(|local| {
             bytes.push(((local & 0xFF00) >> 8) as u8);
-            bytes.push( (local & 0x00FF) as u8);
+            bytes.push((local & 0x00FF) as u8);
         });
 
         self.stack.iter().for_each(|var| {
             bytes.push(((var & 0xFF00) >> 8) as u8);
-            bytes.push( (var & 0x00FF) as u8);
+            bytes.push((var & 0x00FF) as u8);
         });
 
         bytes

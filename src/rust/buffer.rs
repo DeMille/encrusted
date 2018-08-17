@@ -29,7 +29,6 @@ impl<'a> Reader<'a> {
     }
 }
 
-
 #[derive(Debug)]
 pub struct Writer<'a> {
     buffer: &'a mut Buffer,
@@ -56,7 +55,6 @@ impl<'a> Writer<'a> {
     }
 }
 
-
 #[derive(Debug)]
 pub struct Buffer {
     buf: Vec<u8>,
@@ -76,7 +74,7 @@ impl Buffer {
     }
 
     pub fn read_word(&self, location: usize) -> u16 {
-        ((self.buf[location] as u16) << 8) + self.buf[location+1] as u16
+        ((self.buf[location] as u16) << 8) + self.buf[location + 1] as u16
     }
 
     pub fn write_byte(&mut self, location: usize, value: u8) {
@@ -88,11 +86,11 @@ impl Buffer {
         let bottom = (value & 0x00FF) as u8;
 
         self.buf[location] = top;
-        self.buf[location+1] = bottom;
+        self.buf[location + 1] = bottom;
     }
 
     pub fn read(&self, location: usize, length: usize) -> &[u8] {
-        &self.buf[location..location+length]
+        &self.buf[location..location + length]
     }
 
     pub fn write(&mut self, location: usize, buf: &[u8]) {
@@ -106,10 +104,16 @@ impl Buffer {
     }
 
     pub fn get_reader(&self, cursor: usize) -> Reader {
-        Reader { buffer: self, cursor }
+        Reader {
+            buffer: self,
+            cursor,
+        }
     }
 
     pub fn get_writer(&mut self, cursor: usize) -> Writer {
-        Writer { buffer: self, cursor }
+        Writer {
+            buffer: self,
+            cursor,
+        }
     }
 }
