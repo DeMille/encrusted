@@ -1218,6 +1218,7 @@ impl Zmachine {
             (OP0_189, &[]) => Some(self.do_verify()),
             (VAR_231, &[range]) => Some(self.do_random(range)),
             (VAR_248, &[value]) if self.version >= 5 => Some(self.do_not(value)),
+            (VAR_255, &[argnum]) if self.version >= 5 => Some (self.do_check_arg_count(argnum)),
             (EXT_1002, &[number, places]) if self.version >= 5 => Some(self.do_log_shift(number, places)),
             (EXT_1003, &[number, places]) if self.version >= 5 => Some(self.do_art_shift(number, places)),
             _ => None,
@@ -2092,6 +2093,16 @@ impl Zmachine {
     fn do_pull(&mut self, var: u16) {
         let value = self.stack_pop();
         self.write_indirect_variable(var as u8, value);
+    }
+
+    // VAR_255
+    fn do_check_arg_count(&self, argnum: u16) -> u16 {
+        let frame = self.frames.last().expect("Can't check arg count, no frames!");
+        if argnum <= frame.check_arg_count().into() {
+            1
+        } else {
+            0
+        }
     }
 
     fn check_shift_amount(places: i16) {

@@ -187,6 +187,10 @@ impl Frame {
 
         bytes
     }
+
+    pub fn check_arg_count(&self) -> u8 {
+        self.arg_count
+    }
 }
 
 impl fmt::Display for Frame {
