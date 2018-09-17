@@ -6,6 +6,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::PathBuf;
 use std::process;
+use std::str;
 
 use base64;
 use enum_primitive::FromPrimitive;
@@ -175,7 +176,7 @@ impl Zmachine {
             initial_pc,
             pc: initial_pc,
             frames: vec![Frame::empty()],
-            alphabet: Zmachine::default_alphabet(),
+            alphabet: if version >= 5 { Zmachine::load_alphabet(&memory) } else { Zmachine::default_alphabet() },
             abbrev_table: memory.read_word(0x18) as usize,
             separators: Vec::new(),
             dictionary: HashMap::new(),
@@ -209,6 +210,10 @@ impl Zmachine {
         (sum % 0x10000) as u16
     }
 
+    fn to_alphabet_entry(s: &str) -> Vec<String> {
+        s.chars().map(|c| c.to_string()).collect()
+    }
+
     #[allow(non_snake_case)]
     fn default_alphabet() -> [Vec<String>; 3] {
         let A0 = " .....abcdefghijklmnopqrstuvwxyz";
@@ -216,10 +221,29 @@ impl Zmachine {
         let A2 = " ......\n0123456789.,!?_#'\"/\\-:()";
 
         [
-            A0.chars().map(|c| c.to_string()).collect(),
-            A1.chars().map(|c| c.to_string()).collect(),
-            A2.chars().map(|c| c.to_string()).collect(),
+            Zmachine::to_alphabet_entry(A0),
+            Zmachine::to_alphabet_entry(A1),
+            Zmachine::to_alphabet_entry(A2),
         ]
+    }
+
+    #[allow(non_snake_case)]
+    fn load_alphabet(memory: &Buffer) -> [Vec<String>; 3] {
+        let alphabet_addr = memory.read_word(0x34) as usize;
+        if alphabet_addr == 0 {
+            Zmachine::default_alphabet()
+        } else {
+            let A0 = format!(" .....{}", str::from_utf8(memory.read(alphabet_addr, 26)).expect("bad alphabet table A0!"));
+            let A1 = format!(" .....{}", str::from_utf8(memory.read(alphabet_addr + 26, 26)).expect("bad alphabet table A1!"));
+            // First two characters are ignored and accounted for in our padding.
+            let A2 = format!(" ......\n{}", str::from_utf8(memory.read(alphabet_addr + 26 + 26 + 2, 24)).expect("Bad alphabet table A2!"));
+
+            [
+                Zmachine::to_alphabet_entry(&A0),
+                Zmachine::to_alphabet_entry(&A1),
+                Zmachine::to_alphabet_entry(&A2),
+            ]
+        }
     }
 
     fn unpack(&self, addr: u16) -> usize {
