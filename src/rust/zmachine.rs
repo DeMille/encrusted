@@ -1226,6 +1226,7 @@ impl Zmachine {
             (OP1_142, &[var]) => Some(self.do_load(var)),
             (OP1_143, &[value]) if self.version <= 4 => Some(self.do_not(value)),
             (OP0_189, &[]) => Some(self.do_verify()),
+            (OP0_191, &[]) => Some(1), // unconditional branch
             (VAR_231, &[range]) => Some(self.do_random(range)),
             (VAR_248, &[value]) if self.version >= 5 => Some(self.do_not(value)),
             (VAR_255, &[argnum]) if self.version >= 5 => Some (self.do_check_arg_count(argnum)),
