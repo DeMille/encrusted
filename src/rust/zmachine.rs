@@ -1654,22 +1654,22 @@ impl Zmachine {
 
     // OP2_20
     fn do_add(&self, a: u16, b: u16) -> u16 {
-        (a as i16 + b as i16) as u16
+        (a as i16).wrapping_add(b as i16) as u16
     }
 
     // OP2_21
     fn do_sub(&self, a: u16, b: u16) -> u16 {
-        (a as i16 - b as i16) as u16
+        (a as i16).wrapping_sub(b as i16) as u16
     }
 
     // OP2_22
     fn do_mul(&self, a: u16, b: u16) -> u16 {
-        (a as i16 * b as i16) as u16
+        (a as i16).wrapping_mul(b as i16) as u16
     }
 
     // OP2_23
     fn do_div(&self, a: u16, b: u16) -> u16 {
-        (a as i16 / b as i16) as u16
+        (a as i16).wrapping_div(b as i16) as u16
     }
 
     // OP2_24
@@ -1710,14 +1710,14 @@ impl Zmachine {
     fn do_inc(&mut self, var: u16) {
         let value = self.read_indirect_variable(var as u8);
 
-        self.write_indirect_variable(var as u8, (value as i16 + 1) as u16);
+        self.write_indirect_variable(var as u8, (value as i16).wrapping_add(1) as u16);
     }
 
     // OP1_134
     fn do_dec(&mut self, var: u16) {
         let value = self.read_indirect_variable(var as u8);
 
-        self.write_indirect_variable(var as u8, (value as i16 - 1) as u16);
+        self.write_indirect_variable(var as u8, (value as i16).wrapping_sub(1) as u16);
     }
 
     // OP1_135
