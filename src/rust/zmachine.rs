@@ -762,7 +762,7 @@ impl Zmachine {
 
     fn read_object_prop(&self, addr: usize) -> ObjectProperty {
         let header = self.memory.read_byte(addr);
-        let len;
+        let mut len;
         let num;
         let value_addr;
 
@@ -781,6 +781,10 @@ impl Zmachine {
                 } else {
                     len = if header & 0b01000000 != 0 { 2 } else { 1 };
                     value_addr = addr + 1; // 1 byte header
+                }
+                if len == 0 {
+                    // Z-Machine standard section 12.4.2.1.1
+                    len = 64;
                 }
             }
         }
@@ -852,7 +856,13 @@ impl Zmachine {
         if self.version <= 3 {
             prop_header / 32 + 1
         } else if prop_header & 0b10000000 != 0 {
-            prop_header & 0b00111111
+            // This is already the *second* header byte.
+            let len = prop_header & 0b00111111;
+            if len == 0 {
+                64
+            } else {
+                len
+            }
         } else if prop_header & 0b01000000 != 0 {
             2
         } else {
