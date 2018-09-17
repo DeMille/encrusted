@@ -1218,6 +1218,8 @@ impl Zmachine {
             (OP0_189, &[]) => Some(self.do_verify()),
             (VAR_231, &[range]) => Some(self.do_random(range)),
             (VAR_248, &[value]) if self.version >= 5 => Some(self.do_not(value)),
+            (EXT_1002, &[number, places]) if self.version >= 5 => Some(self.do_log_shift(number, places)),
+            (EXT_1003, &[number, places]) if self.version >= 5 => Some(self.do_art_shift(number, places)),
             _ => None,
         };
 
@@ -2090,6 +2092,37 @@ impl Zmachine {
     fn do_pull(&mut self, var: u16) {
         let value = self.stack_pop();
         self.write_indirect_variable(var as u8, value);
+    }
+
+    fn check_shift_amount(places: i16) {
+        assert!(places <= 15, "Cannot do art_shift > 15 places! ({})", places);
+        assert!(places >= -15, "Cannot do art_shift < -15 places! ({})", places);
+    }
+
+    // EXT_1002
+    fn do_log_shift(&mut self, number: u16, places: u16) -> u16 {
+        let places = places as i16;
+        Self::check_shift_amount(places);
+        if places > 0 {
+            number << places
+        } else if places < 0 {
+            number >> -places
+        } else {
+            number
+        }
+    }
+
+    // EXT_1003
+    fn do_art_shift(&mut self, number: u16, places: u16) -> u16 {
+        let places = places as i16;
+        Self::check_shift_amount(places);
+        if places > 0 {
+            number << places
+        } else if places < 0 {
+            ((number as i16) >> -places) as u16
+        } else {
+            number
+        }
     }
 }
 
