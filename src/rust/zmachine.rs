@@ -1214,9 +1214,10 @@ impl Zmachine {
             (OP1_131, &[obj]) => Some(self.do_get_parent(obj)),
             (OP1_132, &[addr]) => Some(self.do_get_prop_len(addr)),
             (OP1_142, &[var]) => Some(self.do_load(var)),
-            (OP1_143, &[value]) => Some(self.do_not(value)),
+            (OP1_143, &[value]) if self.version <= 4 => Some(self.do_not(value)),
             (OP0_189, &[]) => Some(self.do_verify()),
             (VAR_231, &[range]) => Some(self.do_random(range)),
+            (VAR_248, &[value]) if self.version >= 5 => Some(self.do_not(value)),
             _ => None,
         };
 
@@ -1245,6 +1246,7 @@ impl Zmachine {
             (OP1_139, &[value]) => self.do_ret(value),
             (OP1_140, &[offset]) => self.do_jump(offset, instr),
             (OP1_141, &[addr]) => self.do_print_paddr(addr),
+            (OP1_143, &[addr]) if self.version >= 5 => self.do_call(instr, addr, &[]), // call_1n
             (OP0_176, _) => self.do_rtrue(),
             (OP0_177, _) => self.do_rfalse(),
             (OP0_178, _) => self.do_print(instr),
