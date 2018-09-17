@@ -1188,7 +1188,7 @@ impl Zmachine {
         // Match instructions that return values for storing or branching (or both)
         // `result` is an option. either a matched instruction or none (no match)
         let result = match (instr.opcode, &args[..]) {
-            (OP2_1, &[a, ref bs..]) => Some(self.do_je(a, bs)),
+            (OP2_1, args) if args.len() >= 1 => Some(self.do_je(args[0], &args[1..])),
             (OP2_2, &[a, b]) => Some(self.do_jl(a, b)),
             (OP2_3, &[a, b]) => Some(self.do_jg(a, b)),
             (OP2_4, &[var, value]) => Some(self.do_dec_chk(var, value)),
@@ -1255,7 +1255,7 @@ impl Zmachine {
             (OP0_184, _) => self.do_ret_popped(),
             (OP0_187, _) => self.do_newline(),
             (OP0_188, _) => self.do_show_status(),
-            (VAR_224, &[addr, ref rest..]) => self.do_call(instr, addr, rest), // call
+            (VAR_224, args) if args.len() >= 1 => self.do_call(instr, args[0], &args[1..]), // call
             (VAR_225, &[array, index, value]) => self.do_storew(array, index, value),
             (VAR_226, &[array, index, value]) => self.do_storeb(array, index, value),
             (VAR_227, &[obj, prop, value]) => self.do_put_prop(obj, prop, value),
@@ -1264,9 +1264,9 @@ impl Zmachine {
             (VAR_230, &[num]) => self.do_print_num(num),
             (VAR_232, &[value]) => self.do_push(value),
             (VAR_233, &[var]) => self.do_pull(var),
-            (VAR_236, &[addr, ref rest..]) => self.do_call(instr, addr, rest), // call_vs2
-            (VAR_249, &[addr, ref rest..]) => self.do_call(instr, addr, rest), // call_vn
-            (VAR_250, &[addr, ref rest..]) => self.do_call(instr, addr, rest), // call_vn2
+            (VAR_236, args) if args.len() >= 1 => self.do_call(instr, args[0], &args[1..]), // call_vs2
+            (VAR_249, args) if args.len() >= 1 => self.do_call(instr, args[0], &args[1..]), // call_vn
+            (VAR_250, args) if args.len() >= 1 => self.do_call(instr, args[0], &args[1..]), // call_vn2
 
             // special cases to no-op: (input/output streams & sound effects)
             // these might be present in some v3 games but aren't implemented yet

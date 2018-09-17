@@ -1,5 +1,3 @@
-#![feature(slice_patterns)]
-
 extern crate base64;
 extern crate clap;
 extern crate rand;
