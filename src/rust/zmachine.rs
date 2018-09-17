@@ -512,7 +512,7 @@ impl Zmachine {
             // skip attributes
             + self.attr_width
             // ship parent/child/sibling data
-            + if self.version <= 3 { 3 } else { 9 };
+            + if self.version <= 3 { 3 } else { 6 };
 
         // the property table address is in the next word:
         self.memory.read_word(addr) as usize
