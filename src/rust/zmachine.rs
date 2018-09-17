@@ -1253,6 +1253,7 @@ impl Zmachine {
             (OP0_182, _) => self.do_restore(instr),
             (OP0_183, _) => self.do_restart(),
             (OP0_184, _) => self.do_ret_popped(),
+            (OP0_185, _) => self.do_pop(),
             (OP0_187, _) => self.do_newline(),
             (OP0_188, _) => self.do_show_status(),
             (VAR_224, &[addr, ref rest..]) => self.do_call(instr, addr, rest), // call
@@ -1912,6 +1913,11 @@ impl Zmachine {
     fn do_ret_popped(&mut self) {
         let value = self.stack_pop();
         self.return_from_routine(value);
+    }
+
+    // OP0_185
+    fn do_pop(&mut self) {
+        self.stack_pop();
     }
 
     // OP0_187
