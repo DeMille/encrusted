@@ -1,3 +1,4 @@
+
 use std::boxed::Box;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -368,13 +369,21 @@ impl Zmachine {
         }
 
         let offset = 2 * index as usize;
-        let packed_addr = self.memory.read_word(self.abbrev_table + offset);
-        let addr = self.unpack(packed_addr);
+        let word_addr = self.memory.read_word(self.abbrev_table + offset);
+        let addr = word_addr * 2; // "Word addresses are used only in the abbreviations table" - 1.2.2
 
-        self.read_zstring(addr)
+        self.read_zstring_from_abbrev(addr as usize)
+    }
+
+    fn read_zstring_from_abbrev(&self, addr: usize) -> String {
+        self.read_zstring_impl(addr, false)
     }
 
     fn read_zstring(&self, addr: usize) -> String {
+        self.read_zstring_impl(addr, true)
+    }
+
+    fn read_zstring_impl(&self, addr: usize, allow_abbrevs: bool) -> String {
         use self::ZStringState::*;
 
         let mut state = Alphabet(0);
@@ -387,9 +396,10 @@ impl Zmachine {
             let mut step = |zchar: u8| {
                 state = match (zchar, &state) {
                     // the next zchar will be an abbrev index
-                    (1, &Alphabet(_)) => Abbrev(1),
-                    (2, &Alphabet(_)) => Abbrev(2),
-                    (3, &Alphabet(_)) => Abbrev(3),
+                    (zch, &Alphabet(_)) if zch >= 1 && zch <= 3  => {
+                        assert!(allow_abbrevs, "Abbrev at {} contained recursive abbrev!", addr);
+                        Abbrev(zch)
+                    },
                     // shift character for the next zchar
                     (4, &Alphabet(_)) => Alphabet(1),
                     (5, &Alphabet(_)) => Alphabet(2),
