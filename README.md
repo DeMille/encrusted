@@ -5,7 +5,7 @@
 #### A z-machine (interpreter) for Infocom-era text adventure games like Zork
 
 Runs in a web interface or directly in a terminal.  
-Built with Rust and WebAssembly (`rust32-unknwon-unknwon`).
+Built with Rust and WebAssembly (`wasm32-unknown-unknown`).
 
 🎮 [Load the web version][web]
 
