@@ -1217,6 +1217,7 @@ impl Zmachine {
             (OP1_143, &[value]) => Some(self.do_not(value)),
             (OP0_189, &[]) => Some(self.do_verify()),
             (VAR_231, &[range]) => Some(self.do_random(range)),
+            (VAR_255, &[num]) => Some(self.do_check_arg_count(num)),
             _ => None,
         };
 
@@ -2088,6 +2089,20 @@ impl Zmachine {
     fn do_pull(&mut self, var: u16) {
         let value = self.stack_pop();
         self.write_indirect_variable(var as u8, value);
+    }
+
+    // VAR_255
+    fn do_check_arg_count(&self, num: u16) -> u16 {
+        let count = self.frames
+            .last()
+            .expect("Can't write local, no frames!")
+            .arg_count as u16;
+
+        if count == num {
+            1
+        } else {
+            0
+        }
     }
 }
 
