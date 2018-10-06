@@ -345,8 +345,7 @@ impl Zmachine {
         }
 
         let offset = 2 * index as usize;
-        let packed_addr = self.memory.read_word(self.abbrev_table + offset);
-        let addr = self.unpack(packed_addr);
+        let addr = self.memory.read_word(self.abbrev_table + offset) as usize * 2;
 
         self.read_zstring(addr)
     }
