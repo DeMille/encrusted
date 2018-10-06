@@ -228,7 +228,8 @@ impl Zmachine {
         match self.version {
             1...3 => addr * 2,
             4...7 => addr * 4,
-            _ => addr * 8,
+            8 => addr * 8,
+            _ => unreachable!(),
         }
     }
 
@@ -1214,10 +1215,14 @@ impl Zmachine {
             (OP1_131, &[obj]) => Some(self.do_get_parent(obj)),
             (OP1_132, &[addr]) => Some(self.do_get_prop_len(addr)),
             (OP1_142, &[var]) => Some(self.do_load(var)),
-            (OP1_143, &[value]) => Some(self.do_not(value)),
+            (OP1_143, &[value]) if self.version <= 4 => Some(self.do_not(value)),
             (OP0_189, &[]) => Some(self.do_verify()),
             (VAR_231, &[range]) => Some(self.do_random(range)),
+            (VAR_233, &[var]) if self.version == 6 => Some(self.do_pull(var)),
+            (VAR_248, &[val]) => Some(self.do_not(val)),
             (VAR_255, &[num]) => Some(self.do_check_arg_count(num)),
+            (EXT_1002, &[num, places]) => Some(self.do_log_shift(num, places)),
+            (EXT_1003, &[num, places]) => Some(self.do_art_shift(num, places)),
             _ => None,
         };
 
@@ -1246,6 +1251,7 @@ impl Zmachine {
             (OP1_139, &[value]) => self.do_ret(value),
             (OP1_140, &[offset]) => self.do_jump(offset, instr),
             (OP1_141, &[addr]) => self.do_print_paddr(addr),
+            (OP1_143, _) if self.version >= 5 => self.do_call(instr, args[0], &args[1..]), // call_1n
             (OP0_176, _) => self.do_rtrue(),
             (OP0_177, _) => self.do_rfalse(),
             (OP0_178, _) => self.do_print(instr),
@@ -1265,7 +1271,7 @@ impl Zmachine {
             (VAR_229, &[chr]) => self.do_print_char(chr),
             (VAR_230, &[num]) => self.do_print_num(num),
             (VAR_232, &[value]) => self.do_push(value),
-            (VAR_233, &[var]) => self.do_pull(var),
+            (VAR_233, &[var]) => { self.do_pull(var); },
             (VAR_236, args) if args.len() >= 1 => self.do_call(instr, args[0], &args[1..]), // call_vs2
             (VAR_249, args) if args.len() >= 1 => self.do_call(instr, args[0], &args[1..]), // call_vn
             (VAR_250, args) if args.len() >= 1 => self.do_call(instr, args[0], &args[1..]), // call_vn2
@@ -2086,10 +2092,14 @@ impl Zmachine {
     }
 
     // VAR_233
-    fn do_pull(&mut self, var: u16) {
+    fn do_pull(&mut self, var: u16) -> u16 {
         let value = self.stack_pop();
         self.write_indirect_variable(var as u8, value);
+
+        value
     }
+
+    // VAR_248 do_not() (same as OP1_143)
 
     // VAR_255
     fn do_check_arg_count(&self, num: u16) -> u16 {
@@ -2102,6 +2112,31 @@ impl Zmachine {
             1
         } else {
             0
+        }
+    }
+
+    // EXT_1002
+    fn do_log_shift(&mut self, num: u16, places: u16) -> u16 {
+        let negative = (places as i16) < 0;
+        let x = (places as i16).abs();
+
+        if negative {
+            num >> x
+        } else {
+            num << x
+        }
+    }
+
+    // EXT_1003
+    fn do_art_shift(&mut self, num: u16, places: u16) -> u16 {
+        let negative = (places as i16) < 0;
+        let x = (places as i16).abs();
+        let n = num as i16;
+
+        if negative {
+            (n >> x) as u16
+        } else {
+            (n << x) as u16
         }
     }
 }
