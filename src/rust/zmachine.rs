@@ -2113,7 +2113,7 @@ impl Zmachine {
             .expect("Can't write local, no frames!")
             .arg_count as u16;
 
-        if count == num {
+        if count >= num {
             1
         } else {
             0
