@@ -28,11 +28,19 @@ impl TerminalUI {
     }
 
     fn enter_alternate_screen(&self) {
-        self.print_raw("\x1B[?1049h");
+        if self.is_term() {
+            self.print_raw("\x1B[?1049h");
+        }
     }
 
     fn end_alternate_screen(&self) {
-        self.print_raw("\x1B[?1049l");
+        if self.is_term() {
+            self.print_raw("\x1B[?1049l");
+        }
+    }
+
+    fn is_term(&self) -> bool {
+        self.width != 0
     }
 }
 
@@ -54,11 +62,13 @@ impl UI for TerminalUI {
     fn clear(&self) {
         // Clear screen: ESC [2J
         // Move cursor to 1x1: [H
-        self.print_raw("\x1B[2J\x1B[H");
+        if self.is_term() {
+            self.print_raw("\x1B[2J\x1B[H");
+        }
     }
 
     fn print(&mut self, text: &str) {
-        if self.width == 0 {
+        if !self.is_term() {
             self.print_raw(text);
             return;
         }
@@ -108,14 +118,20 @@ impl UI for TerminalUI {
     }
 
     fn print_object(&mut self, object: &str) {
-        self.print_raw("\x1B[37;1m");
+        if self.is_term() {
+            self.print_raw("\x1B[37;1m");
+        }
         self.print(object);
-        self.print_raw("\x1B[0m");
+        if self.is_term() {
+            self.print_raw("\x1B[0m");
+        }
     }
 
     fn set_status_bar(&self, left: &str, right: &str) {
         // ESC ]2; "text" BEL
-        self.print_raw(&format!("\x1B]2;{}  -  {}\x07", left, right));
+        if self.is_term() {
+            self.print_raw(&format!("\x1B]2;{}  -  {}\x07", left, right));
+        }
     }
 
     fn get_user_input(&self) -> String {

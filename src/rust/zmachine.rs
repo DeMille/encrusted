@@ -1253,6 +1253,7 @@ impl Zmachine {
             (OP0_182, _) => self.do_restore(instr),
             (OP0_183, _) => self.do_restart(),
             (OP0_184, _) => self.do_ret_popped(),
+            (OP0_185, _) => self.do_pop(),
             (OP0_187, _) => self.do_newline(),
             (OP0_188, _) => self.do_show_status(),
             (VAR_224, args) if args.len() >= 1 => self.do_call(instr, args[0], &args[1..]), // call
@@ -1653,22 +1654,22 @@ impl Zmachine {
 
     // OP2_20
     fn do_add(&self, a: u16, b: u16) -> u16 {
-        (a as i16 + b as i16) as u16
+        (a as i16).wrapping_add(b as i16) as u16
     }
 
     // OP2_21
     fn do_sub(&self, a: u16, b: u16) -> u16 {
-        (a as i16 - b as i16) as u16
+        (a as i16).wrapping_sub(b as i16) as u16
     }
 
     // OP2_22
     fn do_mul(&self, a: u16, b: u16) -> u16 {
-        (a as i16 * b as i16) as u16
+        (a as i16).wrapping_mul(b as i16) as u16
     }
 
     // OP2_23
     fn do_div(&self, a: u16, b: u16) -> u16 {
-        (a as i16 / b as i16) as u16
+        (a as i16).wrapping_div(b as i16) as u16
     }
 
     // OP2_24
@@ -1709,14 +1710,14 @@ impl Zmachine {
     fn do_inc(&mut self, var: u16) {
         let value = self.read_indirect_variable(var as u8);
 
-        self.write_indirect_variable(var as u8, (value as i16 + 1) as u16);
+        self.write_indirect_variable(var as u8, (value as i16).wrapping_add(1) as u16);
     }
 
     // OP1_134
     fn do_dec(&mut self, var: u16) {
         let value = self.read_indirect_variable(var as u8);
 
-        self.write_indirect_variable(var as u8, (value as i16 - 1) as u16);
+        self.write_indirect_variable(var as u8, (value as i16).wrapping_sub(1) as u16);
     }
 
     // OP1_135
@@ -1912,6 +1913,11 @@ impl Zmachine {
     fn do_ret_popped(&mut self) {
         let value = self.stack_pop();
         self.return_from_routine(value);
+    }
+
+    // OP0_185
+    fn do_pop(&mut self) {
+        self.stack_pop();
     }
 
     // OP0_187
