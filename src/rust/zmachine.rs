@@ -513,7 +513,7 @@ impl Zmachine {
             // skip attributes
             + self.attr_width
             // ship parent/child/sibling data
-            + if self.version <= 3 { 3 } else { 9 };
+            + if self.version <= 3 { 3 } else { 6 };
 
         // the property table address is in the next word:
         self.memory.read_word(addr) as usize
@@ -763,7 +763,7 @@ impl Zmachine {
 
     fn read_object_prop(&self, addr: usize) -> ObjectProperty {
         let header = self.memory.read_byte(addr);
-        let len;
+        let mut len;
         let num;
         let value_addr;
 
@@ -774,10 +774,12 @@ impl Zmachine {
                 value_addr = addr + 1; // 1 byte header
             }
             _ => {
-                num = header & 0b00111111;
+                num = header & 0b00111111; // prop num is bottom 6 bits
 
                 if header & 0b10000000 != 0 {
                     len = self.memory.read_byte(addr + 1) & 0b00111111;
+                    if len == 0 { len = 64; }// quirk
+
                     value_addr = addr + 2; // 2 byte header
                 } else {
                     len = if header & 0b01000000 != 0 { 2 } else { 1 };
@@ -853,7 +855,9 @@ impl Zmachine {
         if self.version <= 3 {
             prop_header / 32 + 1
         } else if prop_header & 0b10000000 != 0 {
-            prop_header & 0b00111111
+            let len = prop_header & 0b00111111;
+
+            if len == 0 { 64 } else { len } // quirk
         } else if prop_header & 0b01000000 != 0 {
             2
         } else {
@@ -1217,6 +1221,7 @@ impl Zmachine {
             (OP1_142, &[var]) => Some(self.do_load(var)),
             (OP1_143, &[value]) if self.version <= 4 => Some(self.do_not(value)),
             (OP0_189, &[]) => Some(self.do_verify()),
+            (OP0_191, &[]) => Some(1), // piracy
             (VAR_231, &[range]) => Some(self.do_random(range)),
             (VAR_233, &[var]) if self.version == 6 => Some(self.do_pull(var)),
             (VAR_248, &[val]) => Some(self.do_not(val)),
