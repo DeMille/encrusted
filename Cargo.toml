@@ -17,8 +17,9 @@ crate-type = ["cdylib"]
 name = "web"
 path = "src/rust/main.web.rs"
 
-[profile.dev]
-opt-level = 2
+[profile.release]
+lto = true
+opt-level = 's'
 
 [dependencies]
 base64 = "0.8.0"

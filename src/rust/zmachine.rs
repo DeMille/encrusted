@@ -1,5 +1,6 @@
 use std::boxed::Box;
 use std::collections::{HashMap, HashSet};
+use std::env;
 use std::fmt;
 use std::fmt::Write as FmtWrite;
 use std::fs::File;
@@ -533,6 +534,10 @@ impl Zmachine {
     }
 
     fn get_parent(&self, object: u16) -> u16 {
+        if object == 0 {
+            return 0;
+        }
+
         let addr = self.get_object_addr(object) + self.attr_width;
 
         if self.version <= 3 {
@@ -553,6 +558,10 @@ impl Zmachine {
     }
 
     fn get_sibling(&self, object: u16) -> u16 {
+        if object == 0 {
+            return 0;
+        }
+
         let addr = self.get_object_addr(object) + self.attr_width;
 
         if self.version <= 3 {
@@ -573,6 +582,10 @@ impl Zmachine {
     }
 
     fn get_child(&self, object: u16) -> u16 {
+        if object == 0 {
+            return 0;
+        }
+
         let addr = self.get_object_addr(object) + self.attr_width;
 
         if self.version <= 3 {
@@ -1188,6 +1201,10 @@ impl Zmachine {
 
         // ~mutably~ gets the arguments (might pop stack)
         let args = self.get_arguments(instr.operands.as_slice());
+
+        if let Ok(_) = env::var("DEBUG") {
+            println!("\x1B[97m{}\x1B[0m", instr);
+        }
 
         // Match instructions that return values for storing or branching (or both)
         // `result` is an option. either a matched instruction or none (no match)
