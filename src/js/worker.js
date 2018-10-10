@@ -27,6 +27,7 @@ const zmachine = new Wrapper({
   load_savestate: [null, ['string']],
   enable_instruction_logs: [null, ['bool']],
   get_object_details: [rust.string, ['number']],
+  flush_log: [],
 });
 
 
@@ -36,6 +37,10 @@ zmachine.imports(wrap => ({
 
     trace: wrap('string', (msg) => {
       const err = new Error(msg);
+
+      setTimeout(() => {
+        zmachine.flush_log();
+      }, 200);
 
       postMessage({
         type: 'error',

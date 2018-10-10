@@ -128,7 +128,7 @@ impl Instruction {
             OP0_182 => version == 4, // missing * in spec?
             OP0_185 => version >= 5,
             VAR_228 => version >= 5,
-            VAR_233 => version >= 6,
+            VAR_233 => version == 6,
             _ => false,
         }
     }

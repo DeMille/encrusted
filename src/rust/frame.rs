@@ -4,7 +4,7 @@ use std::fmt;
 pub struct Frame {
     stack: Vec<u16>,
     locals: Vec<u16>,
-    arg_count: u8,
+    pub arg_count: u8,
     pub resume: usize,
     pub store: Option<u8>,
 }

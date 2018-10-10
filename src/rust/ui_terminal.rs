@@ -73,14 +73,16 @@ impl UI for TerminalUI {
             return;
         }
 
-        let lines: Vec<_> = text.lines().collect();
+        // `.lines()` discards trailing \n and collapses multiple \n's between lines
+        let lines = text.split('\n').collect::<Vec<_>>();
         let num_lines = lines.len();
 
         // implements some word-wrapping so words don't get split across lines
         lines.iter().enumerate().for_each(|(i, line)| {
             // skip if this line is just the result of a "\n"
             if !line.is_empty() {
-                let words: Vec<_> = line.split_whitespace().collect();
+                // `.split_whitespace` having similar issues as `.lines` above
+                let words = line.split(' ').collect::<Vec<_>>();
                 let num_words = words.len();
 
                 // check that each word can fit on the line before printing it.

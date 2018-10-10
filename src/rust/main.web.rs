@@ -151,3 +151,14 @@ pub fn enable_instruction_logs(enabled: bool) {
 pub fn get_object_details(obj_num: u16) -> Box<String> {
     with(|zvm| Box::new(zvm.debug_object_details(obj_num as u16)))
 }
+
+#[no_mangle]
+pub fn flush_log() {
+    ZVM.with(|cell| {
+        let ptr = cell.as_ptr();
+        let opt: &Option<Zmachine> = unsafe { &mut *ptr };
+        let zvm = opt.as_ref().unwrap();
+
+        zvm.ui.message("instructions", &zvm.instr_log);
+    });
+}

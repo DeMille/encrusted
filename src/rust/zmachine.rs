@@ -1,6 +1,7 @@
 
 use std::boxed::Box;
 use std::collections::{HashMap, HashSet};
+use std::env;
 use std::fmt;
 use std::fmt::Write as FmtWrite;
 use std::fs::File;
@@ -253,7 +254,8 @@ impl Zmachine {
         match self.version {
             1...3 => addr * 2,
             4...7 => addr * 4,
-            _ => addr * 8,
+            8 => addr * 8,
+            _ => unreachable!(),
         }
     }
 
@@ -567,6 +569,10 @@ impl Zmachine {
     }
 
     fn get_parent(&self, object: u16) -> u16 {
+        if object == 0 {
+            return 0;
+        }
+
         let addr = self.get_object_addr(object) + self.attr_width;
 
         if self.version <= 3 {
@@ -587,6 +593,10 @@ impl Zmachine {
     }
 
     fn get_sibling(&self, object: u16) -> u16 {
+        if object == 0 {
+            return 0;
+        }
+
         let addr = self.get_object_addr(object) + self.attr_width;
 
         if self.version <= 3 {
@@ -607,6 +617,10 @@ impl Zmachine {
     }
 
     fn get_child(&self, object: u16) -> u16 {
+        if object == 0 {
+            return 0;
+        }
+
         let addr = self.get_object_addr(object) + self.attr_width;
 
         if self.version <= 3 {
@@ -807,18 +821,16 @@ impl Zmachine {
                 value_addr = addr + 1; // 1 byte header
             }
             _ => {
-                num = header & 0b00111111;
+                num = header & 0b00111111; // prop num is bottom 6 bits
 
                 if header & 0b10000000 != 0 {
                     len = self.memory.read_byte(addr + 1) & 0b00111111;
+                    if len == 0 { len = 64; } // Z-Machine standard section 12.4.2.1.1
+
                     value_addr = addr + 2; // 2 byte header
                 } else {
                     len = if header & 0b01000000 != 0 { 2 } else { 1 };
                     value_addr = addr + 1; // 1 byte header
-                }
-                if len == 0 {
-                    // Z-Machine standard section 12.4.2.1.1
-                    len = 64;
                 }
             }
         }
@@ -1229,10 +1241,14 @@ impl Zmachine {
         // ~mutably~ gets the arguments (might pop stack)
         let args = self.get_arguments(instr.operands.as_slice());
 
+        if let Ok(_) = env::var("DEBUG") {
+            println!("\x1B[97m{}\x1B[0m", instr);
+        }
+
         // Match instructions that return values for storing or branching (or both)
         // `result` is an option. either a matched instruction or none (no match)
         let result = match (instr.opcode, &args[..]) {
-            (OP2_1, &[a, ref bs..]) => Some(self.do_je(a, bs)),
+            (OP2_1, args) if args.len() >= 1 => Some(self.do_je(args[0], &args[1..])),
             (OP2_2, &[a, b]) => Some(self.do_jl(a, b)),
             (OP2_3, &[a, b]) => Some(self.do_jg(a, b)),
             (OP2_4, &[var, value]) => Some(self.do_dec_chk(var, value)),
@@ -1260,12 +1276,13 @@ impl Zmachine {
             (OP1_142, &[var]) => Some(self.do_load(var)),
             (OP1_143, &[value]) if self.version <= 4 => Some(self.do_not(value)),
             (OP0_189, &[]) => Some(self.do_verify()),
-            (OP0_191, &[]) => Some(1), // unconditional branch
+            (OP0_191, &[]) => Some(1), // piracy
             (VAR_231, &[range]) => Some(self.do_random(range)),
-            (VAR_248, &[value]) if self.version >= 5 => Some(self.do_not(value)),
-            (VAR_255, &[argnum]) if self.version >= 5 => Some (self.do_check_arg_count(argnum)),
-            (EXT_1002, &[number, places]) if self.version >= 5 => Some(self.do_log_shift(number, places)),
-            (EXT_1003, &[number, places]) if self.version >= 5 => Some(self.do_art_shift(number, places)),
+            (VAR_233, &[var]) if self.version == 6 => Some(self.do_pull(var)),
+            (VAR_248, &[val]) if self.version >= 5 => Some(self.do_not(val)),
+            (VAR_255, &[num]) => Some(self.do_check_arg_count(num)),
+            (EXT_1002, &[num, places]) => Some(self.do_log_shift(num, places)),
+            (EXT_1003, &[num, places]) => Some(self.do_art_shift(num, places)),
             _ => None,
         };
 
@@ -1306,7 +1323,7 @@ impl Zmachine {
             (OP0_185, _) => self.do_pop(),
             (OP0_187, _) => self.do_newline(),
             (OP0_188, _) => self.do_show_status(),
-            (VAR_224, &[addr, ref rest..]) => self.do_call(instr, addr, rest), // call
+            (VAR_224, args) if args.len() >= 1 => self.do_call(instr, args[0], &args[1..]), // call
             (VAR_225, &[array, index, value]) => self.do_storew(array, index, value),
             (VAR_226, &[array, index, value]) => self.do_storeb(array, index, value),
             (VAR_227, &[obj, prop, value]) => self.do_put_prop(obj, prop, value),
@@ -1314,10 +1331,10 @@ impl Zmachine {
             (VAR_229, &[chr]) => self.do_print_char(chr),
             (VAR_230, &[num]) => self.do_print_num(num),
             (VAR_232, &[value]) => self.do_push(value),
-            (VAR_233, &[var]) => self.do_pull(var),
-            (VAR_236, &[addr, ref rest..]) => self.do_call(instr, addr, rest), // call_vs2
-            (VAR_249, &[addr, ref rest..]) => self.do_call(instr, addr, rest), // call_vn
-            (VAR_250, &[addr, ref rest..]) => self.do_call(instr, addr, rest), // call_vn2
+            (VAR_233, &[var]) => { self.do_pull(var); },
+            (VAR_236, args) if args.len() >= 1 => self.do_call(instr, args[0], &args[1..]), // call_vs2
+            (VAR_249, args) if args.len() >= 1 => self.do_call(instr, args[0], &args[1..]), // call_vn
+            (VAR_250, args) if args.len() >= 1 => self.do_call(instr, args[0], &args[1..]), // call_vn2
 
             // special cases to no-op: (input/output streams & sound effects)
             // these might be present in some v3 games but aren't implemented yet
@@ -2135,15 +2152,23 @@ impl Zmachine {
     }
 
     // VAR_233
-    fn do_pull(&mut self, var: u16) {
+    fn do_pull(&mut self, var: u16) -> u16 {
         let value = self.stack_pop();
         self.write_indirect_variable(var as u8, value);
+
+        value
     }
 
+    // VAR_248 do_not() (same as OP1_143)
+
     // VAR_255
-    fn do_check_arg_count(&self, argnum: u16) -> u16 {
-        let frame = self.frames.last().expect("Can't check arg count, no frames!");
-        if argnum <= frame.check_arg_count().into() {
+    fn do_check_arg_count(&self, num: u16) -> u16 {
+        let count = self.frames
+            .last()
+            .expect("Can't check arg count, no frames!")
+            .arg_count as u16;
+
+        if count >= num {
             1
         } else {
             0
@@ -2151,8 +2176,8 @@ impl Zmachine {
     }
 
     fn check_shift_amount(places: i16) {
-        assert!(places <= 15, "Cannot do art_shift > 15 places! ({})", places);
-        assert!(places >= -15, "Cannot do art_shift < -15 places! ({})", places);
+        assert!(places <= 15, "Cannot do shift > 15 places! ({})", places);
+        assert!(places >= -15, "Cannot do shift < -15 places! ({})", places);
     }
 
     // EXT_1002
