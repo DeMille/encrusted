@@ -1,3 +1,4 @@
+
 use std::boxed::Box;
 use std::collections::{HashMap, HashSet};
 use std::env;
@@ -7,6 +8,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::PathBuf;
 use std::process;
+use std::str;
 
 use base64;
 use enum_primitive::FromPrimitive;
@@ -176,7 +178,7 @@ impl Zmachine {
             initial_pc,
             pc: initial_pc,
             frames: vec![Frame::empty()],
-            alphabet: Zmachine::default_alphabet(),
+            alphabet: if version >= 5 { Zmachine::load_alphabet(&memory) } else { Zmachine::default_alphabet() },
             abbrev_table: memory.read_word(0x18) as usize,
             separators: Vec::new(),
             dictionary: HashMap::new(),
@@ -210,6 +212,10 @@ impl Zmachine {
         (sum % 0x10000) as u16
     }
 
+    fn to_alphabet_entry(s: &str) -> Vec<String> {
+        s.chars().map(|c| c.to_string()).collect()
+    }
+
     #[allow(non_snake_case)]
     fn default_alphabet() -> [Vec<String>; 3] {
         let A0 = " .....abcdefghijklmnopqrstuvwxyz";
@@ -217,10 +223,29 @@ impl Zmachine {
         let A2 = " ......\n0123456789.,!?_#'\"/\\-:()";
 
         [
-            A0.chars().map(|c| c.to_string()).collect(),
-            A1.chars().map(|c| c.to_string()).collect(),
-            A2.chars().map(|c| c.to_string()).collect(),
+            Zmachine::to_alphabet_entry(A0),
+            Zmachine::to_alphabet_entry(A1),
+            Zmachine::to_alphabet_entry(A2),
         ]
+    }
+
+    #[allow(non_snake_case)]
+    fn load_alphabet(memory: &Buffer) -> [Vec<String>; 3] {
+        let alphabet_addr = memory.read_word(0x34) as usize;
+        if alphabet_addr == 0 {
+            Zmachine::default_alphabet()
+        } else {
+            let A0 = format!(" .....{}", str::from_utf8(memory.read(alphabet_addr, 26)).expect("bad alphabet table A0!"));
+            let A1 = format!(" .....{}", str::from_utf8(memory.read(alphabet_addr + 26, 26)).expect("bad alphabet table A1!"));
+            // First two characters are ignored and accounted for in our padding.
+            let A2 = format!(" ......\n{}", str::from_utf8(memory.read(alphabet_addr + 26 + 26 + 2, 24)).expect("Bad alphabet table A2!"));
+
+            [
+                Zmachine::to_alphabet_entry(&A0),
+                Zmachine::to_alphabet_entry(&A1),
+                Zmachine::to_alphabet_entry(&A2),
+            ]
+        }
     }
 
     fn unpack(&self, addr: u16) -> usize {
@@ -346,12 +371,21 @@ impl Zmachine {
         }
 
         let offset = 2 * index as usize;
-        let addr = self.memory.read_word(self.abbrev_table + offset) as usize * 2;
+        let word_addr = self.memory.read_word(self.abbrev_table + offset);
+        let addr = word_addr * 2; // "Word addresses are used only in the abbreviations table" - 1.2.2
 
-        self.read_zstring(addr)
+        self.read_zstring_from_abbrev(addr as usize)
+    }
+
+    fn read_zstring_from_abbrev(&self, addr: usize) -> String {
+        self.read_zstring_impl(addr, false)
     }
 
     fn read_zstring(&self, addr: usize) -> String {
+        self.read_zstring_impl(addr, true)
+    }
+
+    fn read_zstring_impl(&self, addr: usize, allow_abbrevs: bool) -> String {
         use self::ZStringState::*;
 
         let mut state = Alphabet(0);
@@ -364,9 +398,10 @@ impl Zmachine {
             let mut step = |zchar: u8| {
                 state = match (zchar, &state) {
                     // the next zchar will be an abbrev index
-                    (1, &Alphabet(_)) => Abbrev(1),
-                    (2, &Alphabet(_)) => Abbrev(2),
-                    (3, &Alphabet(_)) => Abbrev(3),
+                    (zch, &Alphabet(_)) if zch >= 1 && zch <= 3  => {
+                        assert!(allow_abbrevs, "Abbrev at {} contained recursive abbrev!", addr);
+                        Abbrev(zch)
+                    },
                     // shift character for the next zchar
                     (4, &Alphabet(_)) => Alphabet(1),
                     (5, &Alphabet(_)) => Alphabet(2),
@@ -790,7 +825,7 @@ impl Zmachine {
 
                 if header & 0b10000000 != 0 {
                     len = self.memory.read_byte(addr + 1) & 0b00111111;
-                    if len == 0 { len = 64; }// quirk
+                    if len == 0 { len = 64; } // Z-Machine standard section 12.4.2.1.1
 
                     value_addr = addr + 2; // 2 byte header
                 } else {
@@ -867,9 +902,13 @@ impl Zmachine {
         if self.version <= 3 {
             prop_header / 32 + 1
         } else if prop_header & 0b10000000 != 0 {
+            // This is already the *second* header byte.
             let len = prop_header & 0b00111111;
-
-            if len == 0 { 64 } else { len } // quirk
+            if len == 0 {
+                64
+            } else {
+                len
+            }
         } else if prop_header & 0b01000000 != 0 {
             2
         } else {
@@ -1240,7 +1279,7 @@ impl Zmachine {
             (OP0_191, &[]) => Some(1), // piracy
             (VAR_231, &[range]) => Some(self.do_random(range)),
             (VAR_233, &[var]) if self.version == 6 => Some(self.do_pull(var)),
-            (VAR_248, &[val]) => Some(self.do_not(val)),
+            (VAR_248, &[val]) if self.version >= 5 => Some(self.do_not(val)),
             (VAR_255, &[num]) => Some(self.do_check_arg_count(num)),
             (EXT_1002, &[num, places]) => Some(self.do_log_shift(num, places)),
             (EXT_1003, &[num, places]) => Some(self.do_art_shift(num, places)),
@@ -1272,7 +1311,7 @@ impl Zmachine {
             (OP1_139, &[value]) => self.do_ret(value),
             (OP1_140, &[offset]) => self.do_jump(offset, instr),
             (OP1_141, &[addr]) => self.do_print_paddr(addr),
-            (OP1_143, _) if self.version >= 5 => self.do_call(instr, args[0], &args[1..]), // call_1n
+            (OP1_143, &[addr]) if self.version >= 5 => self.do_call(instr, addr, &[]), // call_1n
             (OP0_176, _) => self.do_rtrue(),
             (OP0_177, _) => self.do_rfalse(),
             (OP0_178, _) => self.do_print(instr),
@@ -2126,7 +2165,7 @@ impl Zmachine {
     fn do_check_arg_count(&self, num: u16) -> u16 {
         let count = self.frames
             .last()
-            .expect("Can't write local, no frames!")
+            .expect("Can't check arg count, no frames!")
             .arg_count as u16;
 
         if count >= num {
@@ -2136,28 +2175,34 @@ impl Zmachine {
         }
     }
 
-    // EXT_1002
-    fn do_log_shift(&mut self, num: u16, places: u16) -> u16 {
-        let negative = (places as i16) < 0;
-        let x = (places as i16).abs();
+    fn check_shift_amount(places: i16) {
+        assert!(places <= 15, "Cannot do shift > 15 places! ({})", places);
+        assert!(places >= -15, "Cannot do shift < -15 places! ({})", places);
+    }
 
-        if negative {
-            num >> x
+    // EXT_1002
+    fn do_log_shift(&mut self, number: u16, places: u16) -> u16 {
+        let places = places as i16;
+        Self::check_shift_amount(places);
+        if places > 0 {
+            number << places
+        } else if places < 0 {
+            number >> -places
         } else {
-            num << x
+            number
         }
     }
 
     // EXT_1003
-    fn do_art_shift(&mut self, num: u16, places: u16) -> u16 {
-        let negative = (places as i16) < 0;
-        let x = (places as i16).abs();
-        let n = num as i16;
-
-        if negative {
-            (n >> x) as u16
+    fn do_art_shift(&mut self, number: u16, places: u16) -> u16 {
+        let places = places as i16;
+        Self::check_shift_amount(places);
+        if places > 0 {
+            number << places
+        } else if places < 0 {
+            ((number as i16) >> -places) as u16
         } else {
-            (n << x) as u16
+            number
         }
     }
 }
