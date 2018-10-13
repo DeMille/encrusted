@@ -166,7 +166,7 @@ impl Zmachine {
         let mut zvm = Zmachine {
             version,
             ui,
-            save_dir: format!("{}", &options.save_dir),
+            save_dir: options.save_dir.clone(),
             save_name: format!("{}.sav", &options.save_name),
             options,
             instr_log: String::new(),
@@ -2248,7 +2248,7 @@ impl Zmachine {
         }
 
         out.push_str("\n");
-        self.ui.debug(&format!("{}", out));
+        self.ui.debug(&out);
     }
 
     fn debug_dump(&mut self) {
@@ -2477,7 +2477,7 @@ impl Zmachine {
         let parent_num = self.get_parent(num);
 
         if parent_num == 0 {
-            self.ui.debug(&format!("Parent if the root object 0"));
+            self.ui.debug(&"Parent if the root object 0");
         } else {
             let mut parent = Object::new(parent_num, self);
             self.add_object_children(&mut parent);
@@ -2532,7 +2532,7 @@ impl Zmachine {
         let undo_count = self.undos.len();
         let total = self.undos.len() + self.redos.len() + 1;
 
-        self.ui.debug(&format!("History:"));
+        self.ui.debug(&"History:");
 
         for (i, state) in self.undos.iter().enumerate() {
             let index = i + 1;
