@@ -44,8 +44,8 @@ impl Frame {
         resume += bytes[2] as usize;
 
         let flags = bytes[3];
-        let has_store = (flags & 0b00010000) == 0;
-        let num_locals = flags & 0b00001111;
+        let has_store = (flags & 0b0001_0000) == 0;
+        let num_locals = flags & 0b0000_1111;
 
         let store = if has_store { Some(bytes[4]) } else { None };
 
@@ -153,16 +153,16 @@ impl Frame {
         let mut bytes = Vec::new();
 
         // write pc addr as 3 bytes
-        bytes.push(((self.resume & 0xFF0000) >> 16) as u8);
-        bytes.push(((self.resume & 0x00FF00) >> 8) as u8);
-        bytes.push((self.resume & 0x0000FF) as u8);
+        bytes.push(((self.resume & 0xFF_0000) >> 16) as u8);
+        bytes.push(((self.resume & 0x00_FF00) >> 8) as u8);
+        bytes.push((self.resume & 0x00_00FF) as u8);
 
         let mut flags = self.locals.len() as u8; // 0b0000vvvv
         if self.store.is_some() {
-            flags += 0b00010000;
+            flags += 0b0001_0000;
         }
 
-        let mut args_supplied = 0b00000000;
+        let mut args_supplied = 0b0000_0000;
         for bit in 0..self.arg_count {
             args_supplied |= 1 << bit;
         }

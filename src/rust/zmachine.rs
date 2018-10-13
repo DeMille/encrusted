@@ -209,7 +209,7 @@ impl Zmachine {
             sum += memory.read_byte(i) as usize;
         }
 
-        (sum % 0x10000) as u16
+        (sum % 0x1_0000) as u16
     }
 
     fn to_alphabet_entry(s: &str) -> Vec<String> {
@@ -434,9 +434,9 @@ impl Zmachine {
                 let word = self.memory.read_word(index);
                 index += 2;
 
-                step(((word >> 10) & 0b00011111) as u8);
-                step(((word >> 5) & 0b00011111) as u8);
-                step((word & 0b00011111) as u8);
+                step(((word >> 10) & 0b0001_1111) as u8);
+                step(((word >> 5) & 0b0001_1111) as u8);
+                step((word & 0b0001_1111) as u8);
 
                 // stop bit
                 if word & 0x8000 != 0 {
@@ -821,15 +821,15 @@ impl Zmachine {
                 value_addr = addr + 1; // 1 byte header
             }
             _ => {
-                num = header & 0b00111111; // prop num is bottom 6 bits
+                num = header & 0b0011_1111; // prop num is bottom 6 bits
 
-                if header & 0b10000000 != 0 {
-                    len = self.memory.read_byte(addr + 1) & 0b00111111;
+                if header & 0b1000_0000 != 0 {
+                    len = self.memory.read_byte(addr + 1) & 0b0011_1111;
                     if len == 0 { len = 64; } // Z-Machine standard section 12.4.2.1.1
 
                     value_addr = addr + 2; // 2 byte header
                 } else {
-                    len = if header & 0b01000000 != 0 { 2 } else { 1 };
+                    len = if header & 0b0100_0000 != 0 { 2 } else { 1 };
                     value_addr = addr + 1; // 1 byte header
                 }
             }
@@ -901,15 +901,15 @@ impl Zmachine {
 
         if self.version <= 3 {
             prop_header / 32 + 1
-        } else if prop_header & 0b10000000 != 0 {
+        } else if prop_header & 0b1000_0000 != 0 {
             // This is already the *second* header byte.
-            let len = prop_header & 0b00111111;
+            let len = prop_header & 0b0011_1111;
             if len == 0 {
                 64
             } else {
                 len
             }
-        } else if prop_header & 0b01000000 != 0 {
+        } else if prop_header & 0b0100_0000 != 0 {
             2
         } else {
             1
@@ -957,7 +957,7 @@ impl Zmachine {
         // bit 1 in header flags:
         // 0 => score/turns
         // 1 => AM/PM
-        let right = if self.memory.read_byte(0x01) & 0b00000010 == 0 {
+        let right = if self.memory.read_byte(0x01) & 0b0000_0010 == 0 {
             let score = self.read_global(1) as i16;
             let turns = self.read_global(2);
 
@@ -1116,8 +1116,8 @@ impl Zmachine {
         let mut read = self.memory.get_reader(addr);
         let first = read.byte();
 
-        let btm_4 = |num| num & 0b00001111;
-        let btm_5 = |num| num & 0b00011111;
+        let btm_4 = |num| num & 0b0000_1111;
+        let btm_5 = |num| num & 0b0001_1111;
         let get_types = |bytes: &[u8]| OperandType::from(bytes);
 
         let get_opcode = |code: u8, offset: u16| {
@@ -1172,12 +1172,12 @@ impl Zmachine {
 
         let branch = if Instruction::does_branch(opcode, self.version) {
             let byte = read.byte() as usize;
-            let condition = if byte & 0b10000000 != 0 { 1 } else { 0 };
+            let condition = if byte & 0b1000_0000 != 0 { 1 } else { 0 };
 
-            let offset = if byte & 0b01000000 != 0 {
-                byte & 0b00111111
+            let offset = if byte & 0b0100_0000 != 0 {
+                byte & 0b0011_1111
             } else {
-                ((byte & 0b00111111) << 8) + read.byte() as usize
+                ((byte & 0b0011_1111) << 8) + read.byte() as usize
             };
 
             // the offset (if two bytes) is a 14 bit unsigned int: 2^14 = 16384
@@ -1957,8 +1957,8 @@ impl Zmachine {
         let byte = self.memory.read_byte(self.pc);
 
         if self.version <= 3 {
-            if byte & 0b10000000 != 0 {
-                self.pc += (byte & 0b00111111) as usize - 2; // follow branch
+            if byte & 0b1000_0000 != 0 {
+                self.pc += (byte & 0b0011_1111) as usize - 2; // follow branch
             } else {
                 self.pc += 1; // next instruction
             }

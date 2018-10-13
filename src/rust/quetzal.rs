@@ -109,10 +109,10 @@ impl QuetzalSave {
 
         // 4 bytes for the length (BE)
         let length = body.len();
-        bytes.push(((length & 0xFF000000) >> 24) as u8);
-        bytes.push(((length & 0x00FF0000) >> 16) as u8);
-        bytes.push(((length & 0x0000FF00) >> 8) as u8);
-        bytes.push((length & 0x000000FF) as u8);
+        bytes.push(((length & 0xFF00_0000) >> 24) as u8);
+        bytes.push(((length & 0x00FF_0000) >> 16) as u8);
+        bytes.push(((length & 0x0000_FF00) >> 8) as u8);
+        bytes.push((length & 0x0000_00FF) as u8);
 
         // + body
         bytes.extend(body);
@@ -162,9 +162,9 @@ impl QuetzalSave {
         bytes[9] = (chksum & 0x00FF) as u8;
 
         // 3 bytes for PC
-        bytes[10] = ((pc & 0xFF0000) >> 16) as u8;
-        bytes[11] = ((pc & 0x00FF00) >> 8) as u8;
-        bytes[12] = (pc & 0x0000FF) as u8;
+        bytes[10] = ((pc & 0xFF_0000) >> 16) as u8;
+        bytes[11] = ((pc & 0x00_FF00) >> 8) as u8;
+        bytes[12] = (pc & 0x00_00FF) as u8;
 
         bytes
     }
@@ -242,7 +242,7 @@ impl QuetzalSave {
 
         while offset < bytes.len() - 1 {
             // variable lengths found here:
-            let num_locals = bytes[offset + 3] & 0b00001111;
+            let num_locals = bytes[offset + 3] & 0b0000_1111;
             let mut stack_length = 0;
             stack_length += (bytes[offset + 6] as u16) << 8;
             stack_length += bytes[offset + 7] as u16;
