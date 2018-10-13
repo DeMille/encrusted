@@ -74,7 +74,7 @@ impl Buffer {
     }
 
     pub fn read_word(&self, location: usize) -> u16 {
-        ((self.buf[location] as u16) << 8) + self.buf[location + 1] as u16
+        (u16::from(self.buf[location]) << 8) + u16::from(self.buf[location + 1])
     }
 
     pub fn write_byte(&mut self, location: usize, value: u8) {

@@ -35,7 +35,7 @@ use traits::UI;
 use ui_terminal::TerminalUI;
 use zmachine::Zmachine;
 
-const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn main() {
     let matches = App::new("encrusted")

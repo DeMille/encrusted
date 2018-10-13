@@ -59,8 +59,8 @@ impl Frame {
         }
 
         let mut stack_length = 0;
-        stack_length += (bytes[6] as u16) << 8;
-        stack_length += bytes[7] as u16;
+        stack_length += u16::from(bytes[6]) << 8;
+        stack_length += u16::from(bytes[7]);
 
         let mut locals = Vec::new();
         let mut stack = Vec::new();
@@ -68,8 +68,8 @@ impl Frame {
 
         for offset in 0..num_locals as usize {
             let mut word = 0;
-            word += (bytes[index + offset * 2] as u16) << 8;
-            word += bytes[index + offset * 2 + 1] as u16;
+            word += u16::from(bytes[index + offset * 2]) << 8;
+            word += u16::from(bytes[index + offset * 2 + 1]);
 
             locals.push(word);
         }
@@ -78,8 +78,8 @@ impl Frame {
 
         for offset in 0..stack_length as usize {
             let mut word = 0;
-            word += (bytes[index + offset * 2] as u16) << 8;
-            word += bytes[index + offset * 2 + 1] as u16;
+            word += u16::from(bytes[index + offset * 2]) << 8;
+            word += u16::from(bytes[index + offset * 2 + 1]);
 
             stack.push(word);
         }

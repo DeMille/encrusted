@@ -576,7 +576,7 @@ impl Zmachine {
         let addr = self.get_object_addr(object) + self.attr_width;
 
         if self.version <= 3 {
-            self.memory.read_byte(addr) as u16
+            u16::from(self.memory.read_byte(addr))
         } else {
             self.memory.read_word(addr)
         }
@@ -600,7 +600,7 @@ impl Zmachine {
         let addr = self.get_object_addr(object) + self.attr_width;
 
         if self.version <= 3 {
-            self.memory.read_byte(addr + 1) as u16
+            u16::from(self.memory.read_byte(addr + 1))
         } else {
             self.memory.read_word(addr + 2)
         }
@@ -624,7 +624,7 @@ impl Zmachine {
         let addr = self.get_object_addr(object) + self.attr_width;
 
         if self.version <= 3 {
-            self.memory.read_byte(addr + 2) as u16
+            u16::from(self.memory.read_byte(addr + 2))
         } else {
             self.memory.read_word(addr + 4)
         }
@@ -874,7 +874,7 @@ impl Zmachine {
         if prop.num == 0 {
             self.get_default_prop(property_number)
         } else if prop.len == 1 {
-            self.memory.read_byte(prop.addr) as u16
+            u16::from(self.memory.read_byte(prop.addr))
         } else {
             self.memory.read_word(prop.addr)
         }
@@ -923,11 +923,11 @@ impl Zmachine {
             let str_length = self.memory.read_byte(addr) as usize * 2;
             let first_prop = addr + str_length + 1;
 
-            self.read_object_prop(first_prop).num as u16
+            u16::from(self.read_object_prop(first_prop).num)
         } else {
             let prop = self.find_prop(object, property_number);
 
-            self.read_object_prop(prop.next).num as u16
+            u16::from(self.read_object_prop(prop.next).num)
         }
     }
 
@@ -1061,7 +1061,7 @@ impl Zmachine {
         operands
             .iter()
             .map(|operand| match *operand {
-                Operand::Small(val) => val as u16,
+                Operand::Small(val) => u16::from(val),
                 Operand::Large(val) => val,
                 Operand::Variable(val) => self.read_variable(val),
             })
@@ -1121,7 +1121,7 @@ impl Zmachine {
         let get_types = |bytes: &[u8]| OperandType::from(bytes);
 
         let get_opcode = |code: u8, offset: u16| {
-            let num = code as u16 + offset;
+            let num = u16::from(code) + offset;
 
             match Opcode::from_u16(num) {
                 Some(val) => val,
@@ -1701,7 +1701,7 @@ impl Zmachine {
 
     // OP2_16
     fn do_loadb(&self, array: u16, index: u16) -> u16 {
-        self.memory.read_byte((array + index) as usize) as u16
+        u16::from(self.memory.read_byte((array + index) as usize))
     }
 
     // OP2_17
@@ -1770,7 +1770,7 @@ impl Zmachine {
 
     // OP1_132
     fn do_get_prop_len(&self, addr: u16) -> u16 {
-        self.get_prop_len(addr as usize) as u16
+        u16::from(self.get_prop_len(addr as usize))
     }
 
     // OP1_133
@@ -2142,7 +2142,7 @@ impl Zmachine {
         } else if range == 1 {
             1
         } else {
-            (self.rng.gen::<f32>() * range as f32).ceil() as u16
+            (self.rng.gen::<f32>() * f32::from(range)).ceil() as u16
         }
     }
 
@@ -2163,10 +2163,10 @@ impl Zmachine {
 
     // VAR_255
     fn do_check_arg_count(&self, num: u16) -> u16 {
-        let count = self.frames
+        let count = u16::from(self.frames
             .last()
             .expect("Can't check arg count, no frames!")
-            .arg_count as u16;
+            .arg_count);
 
         if count >= num {
             1
@@ -2419,7 +2419,7 @@ impl Zmachine {
 
         write!(out, "\nAttributes:\n{:?}", attributes).unwrap();
 
-        return out;
+        out
     }
 
     fn debug_have_attribute(&mut self, attr_str: &str) {

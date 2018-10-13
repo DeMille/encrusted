@@ -133,13 +133,13 @@ impl QuetzalSave {
         // 6 bytes for serial number (also skip)
 
         // 1 word for checksum
-        self.chksum += (bytes[8] as u16) << 8;
-        self.chksum += bytes[9] as u16;
+        self.chksum += u16::from(bytes[8]) << 8;
+        self.chksum += u16::from(bytes[9]);
 
         // 3 bytes for PC
-        self.pc += (bytes[10] as usize) << 16;
-        self.pc += (bytes[11] as usize) << 8;
-        self.pc += bytes[12] as usize;
+        self.pc += usize::from(bytes[10]) << 16;
+        self.pc += usize::from(bytes[11]) << 8;
+        self.pc += usize::from(bytes[12]);
     }
 
     fn make_ifhd_body(release: u16, serial: &[u8], chksum: u16, pc: usize) -> [u8; 13] {
@@ -244,8 +244,8 @@ impl QuetzalSave {
             // variable lengths found here:
             let num_locals = bytes[offset + 3] & 0b0000_1111;
             let mut stack_length = 0;
-            stack_length += (bytes[offset + 6] as u16) << 8;
-            stack_length += bytes[offset + 7] as u16;
+            stack_length += u16::from(bytes[offset + 6]) << 8;
+            stack_length += u16::from(bytes[offset + 7]);
 
             // locals start @ byte 8, stack values start after locals
             // each value is a 2 byte word
