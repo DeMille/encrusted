@@ -757,8 +757,8 @@ impl Zmachine {
 
     fn find_yourself(&self) -> Option<u16> {
         self.find_object("cretin")
-            .or(self.find_object("you"))
-            .or(self.find_object("yourself"))
+            .or_else(|| self.find_object("you"))
+            .or_else(|| self.find_object("yourself"))
     }
 
     fn test_attr(&self, object: u16, attr: u16) -> u16 {
@@ -1140,7 +1140,7 @@ impl Zmachine {
             0x80...0x8f => (get_opcode(btm_4(first), 128), vec![Large]),
             0x90...0x9f => (get_opcode(btm_4(first), 128), vec![Small]),
             0xa0...0xaf => (get_opcode(btm_4(first), 128), vec![Variable]),
-            0xb0...0xbf => (get_opcode(btm_4(first), 176), vec![]), // OP_0
+            0xb0...0xbd | 0xbf => (get_opcode(btm_4(first), 176), vec![]), // OP_0
             0xc0...0xdf => (get_opcode(btm_5(first), 0), get_types(&[read.byte()])),
             0xe0...0xff => {
                 let opcode = get_opcode(btm_5(first), 224);
@@ -1241,14 +1241,14 @@ impl Zmachine {
         // ~mutably~ gets the arguments (might pop stack)
         let args = self.get_arguments(instr.operands.as_slice());
 
-        if let Ok(_) = env::var("DEBUG") {
+        if env::var("DEBUG").is_ok() {
             println!("\x1B[97m{}\x1B[0m", instr);
         }
 
         // Match instructions that return values for storing or branching (or both)
         // `result` is an option. either a matched instruction or none (no match)
         let result = match (instr.opcode, &args[..]) {
-            (OP2_1, args) if args.len() >= 1 => Some(self.do_je(args[0], &args[1..])),
+            (OP2_1, args) if !args.is_empty() => Some(self.do_je(args[0], &args[1..])),
             (OP2_2, &[a, b]) => Some(self.do_jl(a, b)),
             (OP2_3, &[a, b]) => Some(self.do_jg(a, b)),
             (OP2_4, &[var, value]) => Some(self.do_dec_chk(var, value)),
@@ -1323,7 +1323,7 @@ impl Zmachine {
             (OP0_185, _) => self.do_pop(),
             (OP0_187, _) => self.do_newline(),
             (OP0_188, _) => self.do_show_status(),
-            (VAR_224, args) if args.len() >= 1 => self.do_call(instr, args[0], &args[1..]), // call
+            (VAR_224, args) if !args.is_empty() => self.do_call(instr, args[0], &args[1..]), // call
             (VAR_225, &[array, index, value]) => self.do_storew(array, index, value),
             (VAR_226, &[array, index, value]) => self.do_storeb(array, index, value),
             (VAR_227, &[obj, prop, value]) => self.do_put_prop(obj, prop, value),
@@ -1332,9 +1332,9 @@ impl Zmachine {
             (VAR_230, &[num]) => self.do_print_num(num),
             (VAR_232, &[value]) => self.do_push(value),
             (VAR_233, &[var]) => { self.do_pull(var); },
-            (VAR_236, args) if args.len() >= 1 => self.do_call(instr, args[0], &args[1..]), // call_vs2
-            (VAR_249, args) if args.len() >= 1 => self.do_call(instr, args[0], &args[1..]), // call_vn
-            (VAR_250, args) if args.len() >= 1 => self.do_call(instr, args[0], &args[1..]), // call_vn2
+            (VAR_236, args) if !args.is_empty() => self.do_call(instr, args[0], &args[1..]), // call_vs2
+            (VAR_249, args) if !args.is_empty() => self.do_call(instr, args[0], &args[1..]), // call_vn
+            (VAR_250, args) if !args.is_empty() => self.do_call(instr, args[0], &args[1..]), // call_vn2
 
             // special cases to no-op: (input/output streams & sound effects)
             // these might be present in some v3 games but aren't implemented yet
@@ -1566,7 +1566,7 @@ impl Zmachine {
 
     // Web UI only
     #[allow(dead_code)]
-    pub fn restore(&mut self, data: String) {
+    pub fn restore(&mut self, data: &str) {
         let state = base64::decode(&data);
 
         // cancel restore (sending an empty string or if base64 decode fails)
@@ -1582,8 +1582,8 @@ impl Zmachine {
     // Web UI only
     // Loads a saved state _without_ processing a restore result (like the above)
     #[allow(dead_code)]
-    pub fn load_savestate(&mut self, data: String) {
-        let state = base64::decode(&data).unwrap();
+    pub fn load_savestate(&mut self, data: &str) {
+        let state = base64::decode(data).unwrap();
         self.restore_state(state.as_slice());
     }
 }
