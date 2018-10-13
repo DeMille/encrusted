@@ -274,16 +274,16 @@ impl QuetzalSave {
 
 impl fmt::Display for QuetzalSave {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
+        writeln!(
             f,
-            "PC: {:#04x} Chksum: {:#04x} Mem Length: {}\n",
+            "PC: {:#04x} Chksum: {:#04x} Mem Length: {}",
             self.pc,
             self.chksum,
             self.memory.len()
         )?;
 
         for frame in &self.frames {
-            write!(f, "{}\n", frame)?;
+            writeln!(f, "{}", frame)?;
         }
 
         write!(f, "")

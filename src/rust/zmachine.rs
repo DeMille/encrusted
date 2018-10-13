@@ -2253,10 +2253,10 @@ impl Zmachine {
 
     fn debug_dump(&mut self) {
         let mut out = String::new();
-        write!(out, "PC @ {}\n", self.pc).unwrap();
+        writeln!(out, "PC @ {}", self.pc).unwrap();
 
         for frame in &self.frames {
-            write!(out, "{}\n", frame).unwrap();
+            writeln!(out, "{}", frame).unwrap();
         }
 
         self.ui.debug(&out);
@@ -2400,13 +2400,13 @@ impl Zmachine {
         let mut prop = self.read_object_prop(first_addr);
         let mut slice = self.memory.read(prop.addr, prop.len as usize);
 
-        write!(out, "{:2} {:?}\n", prop.num, slice).unwrap();
+        writeln!(out, "{:2} {:?}", prop.num, slice).unwrap();
 
         while prop.num != 0 {
             prop = self.read_object_prop(prop.next);
             slice = self.memory.read(prop.addr, prop.len as usize);
 
-            write!(out, "{:2} {:?}\n", prop.num, slice).unwrap();
+            writeln!(out, "{:2} {:?}", prop.num, slice).unwrap();
         }
 
         let mut attributes = Vec::new();
