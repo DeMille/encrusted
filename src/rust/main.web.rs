@@ -119,12 +119,12 @@ pub fn feed(input_ptr: *mut c_char) {
 
 #[no_mangle]
 pub fn restore(b64_ptr: *mut c_char) {
-    with(|zvm| zvm.restore(get_string(b64_ptr)));
+    with(|zvm| zvm.restore(&get_string(b64_ptr)));
 }
 
 #[no_mangle]
 pub fn load_savestate(b64_ptr: *mut c_char) {
-    with(|zvm| zvm.load_savestate(get_string(b64_ptr)));
+    with(|zvm| zvm.load_savestate(&get_string(b64_ptr)));
 }
 
 #[no_mangle]

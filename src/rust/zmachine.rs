@@ -166,7 +166,7 @@ impl Zmachine {
         let mut zvm = Zmachine {
             version,
             ui,
-            save_dir: format!("{}", &options.save_dir),
+            save_dir: options.save_dir.clone(),
             save_name: format!("{}.sav", &options.save_name),
             options,
             instr_log: String::new(),
@@ -209,7 +209,7 @@ impl Zmachine {
             sum += memory.read_byte(i) as usize;
         }
 
-        (sum % 0x10000) as u16
+        (sum % 0x1_0000) as u16
     }
 
     fn to_alphabet_entry(s: &str) -> Vec<String> {
@@ -434,9 +434,9 @@ impl Zmachine {
                 let word = self.memory.read_word(index);
                 index += 2;
 
-                step(((word >> 10) & 0b00011111) as u8);
-                step(((word >> 5) & 0b00011111) as u8);
-                step((word & 0b00011111) as u8);
+                step(((word >> 10) & 0b0001_1111) as u8);
+                step(((word >> 5) & 0b0001_1111) as u8);
+                step((word & 0b0001_1111) as u8);
 
                 // stop bit
                 if word & 0x8000 != 0 {
@@ -576,7 +576,7 @@ impl Zmachine {
         let addr = self.get_object_addr(object) + self.attr_width;
 
         if self.version <= 3 {
-            self.memory.read_byte(addr) as u16
+            u16::from(self.memory.read_byte(addr))
         } else {
             self.memory.read_word(addr)
         }
@@ -600,7 +600,7 @@ impl Zmachine {
         let addr = self.get_object_addr(object) + self.attr_width;
 
         if self.version <= 3 {
-            self.memory.read_byte(addr + 1) as u16
+            u16::from(self.memory.read_byte(addr + 1))
         } else {
             self.memory.read_word(addr + 2)
         }
@@ -624,7 +624,7 @@ impl Zmachine {
         let addr = self.get_object_addr(object) + self.attr_width;
 
         if self.version <= 3 {
-            self.memory.read_byte(addr + 2) as u16
+            u16::from(self.memory.read_byte(addr + 2))
         } else {
             self.memory.read_word(addr + 4)
         }
@@ -757,8 +757,8 @@ impl Zmachine {
 
     fn find_yourself(&self) -> Option<u16> {
         self.find_object("cretin")
-            .or(self.find_object("you"))
-            .or(self.find_object("yourself"))
+            .or_else(|| self.find_object("you"))
+            .or_else(|| self.find_object("yourself"))
     }
 
     fn test_attr(&self, object: u16, attr: u16) -> u16 {
@@ -821,15 +821,15 @@ impl Zmachine {
                 value_addr = addr + 1; // 1 byte header
             }
             _ => {
-                num = header & 0b00111111; // prop num is bottom 6 bits
+                num = header & 0b0011_1111; // prop num is bottom 6 bits
 
-                if header & 0b10000000 != 0 {
-                    len = self.memory.read_byte(addr + 1) & 0b00111111;
+                if header & 0b1000_0000 != 0 {
+                    len = self.memory.read_byte(addr + 1) & 0b0011_1111;
                     if len == 0 { len = 64; } // Z-Machine standard section 12.4.2.1.1
 
                     value_addr = addr + 2; // 2 byte header
                 } else {
-                    len = if header & 0b01000000 != 0 { 2 } else { 1 };
+                    len = if header & 0b0100_0000 != 0 { 2 } else { 1 };
                     value_addr = addr + 1; // 1 byte header
                 }
             }
@@ -874,7 +874,7 @@ impl Zmachine {
         if prop.num == 0 {
             self.get_default_prop(property_number)
         } else if prop.len == 1 {
-            self.memory.read_byte(prop.addr) as u16
+            u16::from(self.memory.read_byte(prop.addr))
         } else {
             self.memory.read_word(prop.addr)
         }
@@ -901,15 +901,15 @@ impl Zmachine {
 
         if self.version <= 3 {
             prop_header / 32 + 1
-        } else if prop_header & 0b10000000 != 0 {
+        } else if prop_header & 0b1000_0000 != 0 {
             // This is already the *second* header byte.
-            let len = prop_header & 0b00111111;
+            let len = prop_header & 0b0011_1111;
             if len == 0 {
                 64
             } else {
                 len
             }
-        } else if prop_header & 0b01000000 != 0 {
+        } else if prop_header & 0b0100_0000 != 0 {
             2
         } else {
             1
@@ -923,11 +923,11 @@ impl Zmachine {
             let str_length = self.memory.read_byte(addr) as usize * 2;
             let first_prop = addr + str_length + 1;
 
-            self.read_object_prop(first_prop).num as u16
+            u16::from(self.read_object_prop(first_prop).num)
         } else {
             let prop = self.find_prop(object, property_number);
 
-            self.read_object_prop(prop.next).num as u16
+            u16::from(self.read_object_prop(prop.next).num)
         }
     }
 
@@ -957,7 +957,7 @@ impl Zmachine {
         // bit 1 in header flags:
         // 0 => score/turns
         // 1 => AM/PM
-        let right = if self.memory.read_byte(0x01) & 0b00000010 == 0 {
+        let right = if self.memory.read_byte(0x01) & 0b0000_0010 == 0 {
             let score = self.read_global(1) as i16;
             let turns = self.read_global(2);
 
@@ -1061,7 +1061,7 @@ impl Zmachine {
         operands
             .iter()
             .map(|operand| match *operand {
-                Operand::Small(val) => val as u16,
+                Operand::Small(val) => u16::from(val),
                 Operand::Large(val) => val,
                 Operand::Variable(val) => self.read_variable(val),
             })
@@ -1116,12 +1116,12 @@ impl Zmachine {
         let mut read = self.memory.get_reader(addr);
         let first = read.byte();
 
-        let btm_4 = |num| num & 0b00001111;
-        let btm_5 = |num| num & 0b00011111;
+        let btm_4 = |num| num & 0b0000_1111;
+        let btm_5 = |num| num & 0b0001_1111;
         let get_types = |bytes: &[u8]| OperandType::from(bytes);
 
         let get_opcode = |code: u8, offset: u16| {
-            let num = code as u16 + offset;
+            let num = u16::from(code) + offset;
 
             match Opcode::from_u16(num) {
                 Some(val) => val,
@@ -1140,7 +1140,7 @@ impl Zmachine {
             0x80...0x8f => (get_opcode(btm_4(first), 128), vec![Large]),
             0x90...0x9f => (get_opcode(btm_4(first), 128), vec![Small]),
             0xa0...0xaf => (get_opcode(btm_4(first), 128), vec![Variable]),
-            0xb0...0xbf => (get_opcode(btm_4(first), 176), vec![]), // OP_0
+            0xb0...0xbd | 0xbf => (get_opcode(btm_4(first), 176), vec![]), // OP_0
             0xc0...0xdf => (get_opcode(btm_5(first), 0), get_types(&[read.byte()])),
             0xe0...0xff => {
                 let opcode = get_opcode(btm_5(first), 224);
@@ -1172,12 +1172,12 @@ impl Zmachine {
 
         let branch = if Instruction::does_branch(opcode, self.version) {
             let byte = read.byte() as usize;
-            let condition = if byte & 0b10000000 != 0 { 1 } else { 0 };
+            let condition = if byte & 0b1000_0000 != 0 { 1 } else { 0 };
 
-            let offset = if byte & 0b01000000 != 0 {
-                byte & 0b00111111
+            let offset = if byte & 0b0100_0000 != 0 {
+                byte & 0b0011_1111
             } else {
-                ((byte & 0b00111111) << 8) + read.byte() as usize
+                ((byte & 0b0011_1111) << 8) + read.byte() as usize
             };
 
             // the offset (if two bytes) is a 14 bit unsigned int: 2^14 = 16384
@@ -1241,14 +1241,14 @@ impl Zmachine {
         // ~mutably~ gets the arguments (might pop stack)
         let args = self.get_arguments(instr.operands.as_slice());
 
-        if let Ok(_) = env::var("DEBUG") {
+        if env::var("DEBUG").is_ok() {
             println!("\x1B[97m{}\x1B[0m", instr);
         }
 
         // Match instructions that return values for storing or branching (or both)
         // `result` is an option. either a matched instruction or none (no match)
         let result = match (instr.opcode, &args[..]) {
-            (OP2_1, args) if args.len() >= 1 => Some(self.do_je(args[0], &args[1..])),
+            (OP2_1, args) if !args.is_empty() => Some(self.do_je(args[0], &args[1..])),
             (OP2_2, &[a, b]) => Some(self.do_jl(a, b)),
             (OP2_3, &[a, b]) => Some(self.do_jg(a, b)),
             (OP2_4, &[var, value]) => Some(self.do_dec_chk(var, value)),
@@ -1323,7 +1323,7 @@ impl Zmachine {
             (OP0_185, _) => self.do_pop(),
             (OP0_187, _) => self.do_newline(),
             (OP0_188, _) => self.do_show_status(),
-            (VAR_224, args) if args.len() >= 1 => self.do_call(instr, args[0], &args[1..]), // call
+            (VAR_224, args) if !args.is_empty() => self.do_call(instr, args[0], &args[1..]), // call
             (VAR_225, &[array, index, value]) => self.do_storew(array, index, value),
             (VAR_226, &[array, index, value]) => self.do_storeb(array, index, value),
             (VAR_227, &[obj, prop, value]) => self.do_put_prop(obj, prop, value),
@@ -1332,9 +1332,9 @@ impl Zmachine {
             (VAR_230, &[num]) => self.do_print_num(num),
             (VAR_232, &[value]) => self.do_push(value),
             (VAR_233, &[var]) => { self.do_pull(var); },
-            (VAR_236, args) if args.len() >= 1 => self.do_call(instr, args[0], &args[1..]), // call_vs2
-            (VAR_249, args) if args.len() >= 1 => self.do_call(instr, args[0], &args[1..]), // call_vn
-            (VAR_250, args) if args.len() >= 1 => self.do_call(instr, args[0], &args[1..]), // call_vn2
+            (VAR_236, args) if !args.is_empty() => self.do_call(instr, args[0], &args[1..]), // call_vs2
+            (VAR_249, args) if !args.is_empty() => self.do_call(instr, args[0], &args[1..]), // call_vn
+            (VAR_250, args) if !args.is_empty() => self.do_call(instr, args[0], &args[1..]), // call_vn2
 
             // special cases to no-op: (input/output streams & sound effects)
             // these might be present in some v3 games but aren't implemented yet
@@ -1566,7 +1566,7 @@ impl Zmachine {
 
     // Web UI only
     #[allow(dead_code)]
-    pub fn restore(&mut self, data: String) {
+    pub fn restore(&mut self, data: &str) {
         let state = base64::decode(&data);
 
         // cancel restore (sending an empty string or if base64 decode fails)
@@ -1582,8 +1582,8 @@ impl Zmachine {
     // Web UI only
     // Loads a saved state _without_ processing a restore result (like the above)
     #[allow(dead_code)]
-    pub fn load_savestate(&mut self, data: String) {
-        let state = base64::decode(&data).unwrap();
+    pub fn load_savestate(&mut self, data: &str) {
+        let state = base64::decode(data).unwrap();
         self.restore_state(state.as_slice());
     }
 }
@@ -1701,7 +1701,7 @@ impl Zmachine {
 
     // OP2_16
     fn do_loadb(&self, array: u16, index: u16) -> u16 {
-        self.memory.read_byte((array + index) as usize) as u16
+        u16::from(self.memory.read_byte((array + index) as usize))
     }
 
     // OP2_17
@@ -1770,7 +1770,7 @@ impl Zmachine {
 
     // OP1_132
     fn do_get_prop_len(&self, addr: u16) -> u16 {
-        self.get_prop_len(addr as usize) as u16
+        u16::from(self.get_prop_len(addr as usize))
     }
 
     // OP1_133
@@ -1957,8 +1957,8 @@ impl Zmachine {
         let byte = self.memory.read_byte(self.pc);
 
         if self.version <= 3 {
-            if byte & 0b10000000 != 0 {
-                self.pc += (byte & 0b00111111) as usize - 2; // follow branch
+            if byte & 0b1000_0000 != 0 {
+                self.pc += (byte & 0b0011_1111) as usize - 2; // follow branch
             } else {
                 self.pc += 1; // next instruction
             }
@@ -2142,7 +2142,7 @@ impl Zmachine {
         } else if range == 1 {
             1
         } else {
-            (self.rng.gen::<f32>() * range as f32).ceil() as u16
+            (self.rng.gen::<f32>() * f32::from(range)).ceil() as u16
         }
     }
 
@@ -2163,10 +2163,10 @@ impl Zmachine {
 
     // VAR_255
     fn do_check_arg_count(&self, num: u16) -> u16 {
-        let count = self.frames
+        let count = u16::from(self.frames
             .last()
             .expect("Can't check arg count, no frames!")
-            .arg_count as u16;
+            .arg_count);
 
         if count >= num {
             1
@@ -2248,15 +2248,15 @@ impl Zmachine {
         }
 
         out.push_str("\n");
-        self.ui.debug(&format!("{}", out));
+        self.ui.debug(&out);
     }
 
     fn debug_dump(&mut self) {
         let mut out = String::new();
-        write!(out, "PC @ {}\n", self.pc).unwrap();
+        writeln!(out, "PC @ {}", self.pc).unwrap();
 
         for frame in &self.frames {
-            write!(out, "{}\n", frame).unwrap();
+            writeln!(out, "{}", frame).unwrap();
         }
 
         self.ui.debug(&out);
@@ -2400,13 +2400,13 @@ impl Zmachine {
         let mut prop = self.read_object_prop(first_addr);
         let mut slice = self.memory.read(prop.addr, prop.len as usize);
 
-        write!(out, "{:2} {:?}\n", prop.num, slice).unwrap();
+        writeln!(out, "{:2} {:?}", prop.num, slice).unwrap();
 
         while prop.num != 0 {
             prop = self.read_object_prop(prop.next);
             slice = self.memory.read(prop.addr, prop.len as usize);
 
-            write!(out, "{:2} {:?}\n", prop.num, slice).unwrap();
+            writeln!(out, "{:2} {:?}", prop.num, slice).unwrap();
         }
 
         let mut attributes = Vec::new();
@@ -2419,7 +2419,7 @@ impl Zmachine {
 
         write!(out, "\nAttributes:\n{:?}", attributes).unwrap();
 
-        return out;
+        out
     }
 
     fn debug_have_attribute(&mut self, attr_str: &str) {
@@ -2477,7 +2477,7 @@ impl Zmachine {
         let parent_num = self.get_parent(num);
 
         if parent_num == 0 {
-            self.ui.debug(&format!("Parent if the root object 0"));
+            self.ui.debug(&"Parent if the root object 0");
         } else {
             let mut parent = Object::new(parent_num, self);
             self.add_object_children(&mut parent);
@@ -2532,7 +2532,7 @@ impl Zmachine {
         let undo_count = self.undos.len();
         let total = self.undos.len() + self.redos.len() + 1;
 
-        self.ui.debug(&format!("History:"));
+        self.ui.debug(&"History:");
 
         for (i, state) in self.undos.iter().enumerate() {
             let index = i + 1;

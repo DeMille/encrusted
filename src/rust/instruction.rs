@@ -52,10 +52,10 @@ impl OperandType {
         bytes
             .iter()
             .fold(Vec::new(), |mut acc, n| {
-                acc.push((n & 0b11000000) >> 6);
-                acc.push((n & 0b00110000) >> 4);
-                acc.push((n & 0b00001100) >> 2);
-                acc.push(n & 0b00000011);
+                acc.push((n & 0b1100_0000) >> 6);
+                acc.push((n & 0b0011_0000) >> 4);
+                acc.push((n & 0b0000_1100) >> 2);
+                acc.push(n & 0b0000_0011);
                 acc
             })
             .into_iter()

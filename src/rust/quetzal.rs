@@ -109,10 +109,10 @@ impl QuetzalSave {
 
         // 4 bytes for the length (BE)
         let length = body.len();
-        bytes.push(((length & 0xFF000000) >> 24) as u8);
-        bytes.push(((length & 0x00FF0000) >> 16) as u8);
-        bytes.push(((length & 0x0000FF00) >> 8) as u8);
-        bytes.push((length & 0x000000FF) as u8);
+        bytes.push(((length & 0xFF00_0000) >> 24) as u8);
+        bytes.push(((length & 0x00FF_0000) >> 16) as u8);
+        bytes.push(((length & 0x0000_FF00) >> 8) as u8);
+        bytes.push((length & 0x0000_00FF) as u8);
 
         // + body
         bytes.extend(body);
@@ -133,13 +133,13 @@ impl QuetzalSave {
         // 6 bytes for serial number (also skip)
 
         // 1 word for checksum
-        self.chksum += (bytes[8] as u16) << 8;
-        self.chksum += bytes[9] as u16;
+        self.chksum += u16::from(bytes[8]) << 8;
+        self.chksum += u16::from(bytes[9]);
 
         // 3 bytes for PC
-        self.pc += (bytes[10] as usize) << 16;
-        self.pc += (bytes[11] as usize) << 8;
-        self.pc += bytes[12] as usize;
+        self.pc += usize::from(bytes[10]) << 16;
+        self.pc += usize::from(bytes[11]) << 8;
+        self.pc += usize::from(bytes[12]);
     }
 
     fn make_ifhd_body(release: u16, serial: &[u8], chksum: u16, pc: usize) -> [u8; 13] {
@@ -162,9 +162,9 @@ impl QuetzalSave {
         bytes[9] = (chksum & 0x00FF) as u8;
 
         // 3 bytes for PC
-        bytes[10] = ((pc & 0xFF0000) >> 16) as u8;
-        bytes[11] = ((pc & 0x00FF00) >> 8) as u8;
-        bytes[12] = (pc & 0x0000FF) as u8;
+        bytes[10] = ((pc & 0xFF_0000) >> 16) as u8;
+        bytes[11] = ((pc & 0x00_FF00) >> 8) as u8;
+        bytes[12] = (pc & 0x00_00FF) as u8;
 
         bytes
     }
@@ -242,10 +242,10 @@ impl QuetzalSave {
 
         while offset < bytes.len() - 1 {
             // variable lengths found here:
-            let num_locals = bytes[offset + 3] & 0b00001111;
+            let num_locals = bytes[offset + 3] & 0b0000_1111;
             let mut stack_length = 0;
-            stack_length += (bytes[offset + 6] as u16) << 8;
-            stack_length += bytes[offset + 7] as u16;
+            stack_length += u16::from(bytes[offset + 6]) << 8;
+            stack_length += u16::from(bytes[offset + 7]);
 
             // locals start @ byte 8, stack values start after locals
             // each value is a 2 byte word
@@ -274,16 +274,16 @@ impl QuetzalSave {
 
 impl fmt::Display for QuetzalSave {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
+        writeln!(
             f,
-            "PC: {:#04x} Chksum: {:#04x} Mem Length: {}\n",
+            "PC: {:#04x} Chksum: {:#04x} Mem Length: {}",
             self.pc,
             self.chksum,
             self.memory.len()
         )?;
 
         for frame in &self.frames {
-            write!(f, "{}\n", frame)?;
+            writeln!(f, "{}", frame)?;
         }
 
         write!(f, "")

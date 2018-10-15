@@ -92,7 +92,7 @@ impl UI for TerminalUI {
 
                     if self.x_position > self.width {
                         self.x_position = word.len();
-                        print!("\n");
+                        println!();
                     }
 
                     print!("{}", word);
@@ -107,7 +107,7 @@ impl UI for TerminalUI {
 
             // add newlines back that were removed from split
             if i < num_lines - 1 {
-                print!("\n");
+                println!();
                 self.x_position = 0;
             }
         });
@@ -152,7 +152,7 @@ impl UI for TerminalUI {
     }
 
     fn reset(&self) {
-        println!("");
+        println!();
     }
 
     // unimplemented, only used in web ui
