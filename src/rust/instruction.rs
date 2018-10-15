@@ -86,7 +86,7 @@ impl fmt::Display for Operand {
             Operand::Variable(x) => match x {
                 0 => write!(f, "sp"),
                 1...15 => write!(f, "local{}", x - 1),
-                _ => write!(f, "g{:02x}", x - 16),
+                _ => write!(f, "g{}", x - 16),
             },
         }
     }
@@ -363,7 +363,7 @@ impl fmt::Display for Instruction {
             match x {
                 0 => write!(f, " -> sp"),
                 1...15 => write!(f, " -> local{}", x - 1),
-                _ => write!(f, " -> g{:02x}", x - 16),
+                _ => write!(f, " -> g{}", x - 16),
             }?;
         };
 
