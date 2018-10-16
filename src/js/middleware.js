@@ -3,6 +3,7 @@ import WorkerController from './WorkerController';
 import { Graph } from './Rooms';
 
 import Restore from './components/Restore';
+import ErrorModal from './components/ErrorModal';
 
 
 const has = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
@@ -131,19 +132,7 @@ const middleware = store => next => (action) => {
     });
 
     worker.on('error', (err) => {
-      const body = (
-        <div className="modal-body">
-          <h2>Error</h2>
-          <p>
-            Unexpected zmachine error:
-          </p>
-          <pre className="danger">
-            {err.stack}
-          </pre>
-        </div>
-      );
-
-      dispatch({ type: 'MODAL::SHOW', child: body });
+      dispatch({ type: 'MODAL::SHOW', child: <ErrorModal err={err} /> });
     });
 
     worker.isBound = true;

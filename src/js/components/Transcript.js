@@ -4,6 +4,7 @@ import { connect } from 'react-redux';
 import fileDB from '../fileDB';
 import Move from './Move';
 import Header from './Header';
+import ErrorModal from './ErrorModal';
 
 
 class Transcript extends Component {
@@ -19,15 +20,7 @@ class Transcript extends Component {
     const filename = this.props.filename;
 
     const onErr = (err, msg) => {
-      this.props.openModal(
-        <div>
-          <h2>Error ~</h2>
-          <div className="modal-body mt-4">{msg}</div>
-          <pre className="danger mb-4">
-            {err.stack}
-          </pre>
-        </div>
-      );
+      this.props.openModal(<ErrorModal err={err} msg={msg} />);
     };
 
     fileDB.load(filename)
@@ -35,7 +28,7 @@ class Transcript extends Component {
         file => this.props.start(filename, file),
         err => onErr(err, `Error getting story file: ${err}`),
       )
-      .catch(err => onErr(err, `Unknown start up error: ${err}`, err.stack));
+      .catch(err => onErr(err, `Unknown start up error: ${err}`));
   }
 
   componentWillUnmount() {
