@@ -23,6 +23,9 @@ class Transcript extends Component {
         <div>
           <h2>Error ~</h2>
           <div className="modal-body mt-4">{msg}</div>
+          <pre className="danger mb-4">
+            {err.stack}
+          </pre>
         </div>
       );
     };
@@ -32,7 +35,7 @@ class Transcript extends Component {
         file => this.props.start(filename, file),
         err => onErr(err, `Error getting story file: ${err}`),
       )
-      .catch(err => onErr(err, `Unknown start up error: ${err}`));
+      .catch(err => onErr(err, `Unknown start up error: ${err}`, err.stack));
   }
 
   componentWillUnmount() {
@@ -63,6 +66,7 @@ class Transcript extends Component {
   }
 
   render() {
+    // only the last move is "active" and will have a text input field
     const moves = this.props.moves.map((move, index) => (
       <Move
         isActive={(index === this.props.moves.length - 1)}

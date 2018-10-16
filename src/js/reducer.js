@@ -6,6 +6,7 @@ const initialTranscript = {
   undos: [],
   history: [],
   header: { left: '', right: '' },
+  quit: false,
 };
 
 function transcript(state = initialTranscript, action) {
@@ -51,6 +52,9 @@ function transcript(state = initialTranscript, action) {
     case 'TS::STOP':
     case 'TS::RESTART':
       return Object.assign({}, initialTranscript);
+
+    case 'TS::QUIT':
+      return Object.assign({}, state, { quit: true });
 
     default:
       return state;

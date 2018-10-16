@@ -35,8 +35,8 @@ export default connect(
   state => ({
     left: state.transcript.header.left,
     right: state.transcript.header.right,
-    canUndo: state.transcript.moves.length > 1,
-    canRedo: !!state.transcript.undos.length,
+    canUndo: !state.transcript.quit && state.transcript.moves.length > 1,
+    canRedo: !state.transcript.quit && !!state.transcript.undos.length,
   }),
   dispatch => ({
     undo: () => dispatch({ type: 'TS::UNDO' }),

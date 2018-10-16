@@ -164,6 +164,7 @@ class Move extends Component {
 
   shouldComponentUpdate(next) {
     return (
+      next.quit ||
       next.isActive !== this.props.isActive ||
       this.props.isActive && (next.modalOpen !== this.props.modalOpen)
     );
@@ -181,7 +182,7 @@ class Move extends Component {
 
   render() {
     const width = this.calculateWidth(this.props.text);
-    const active = this.props.isActive && !this.props.modalOpen;
+    const active = this.props.isActive && !this.props.modalOpen && !this.props.quit;
 
     return (
       <div className="move">
@@ -211,5 +212,6 @@ export default connect(
   state => ({
     modalOpen: !!state.modal.child,
     voiceCommandsEnabled: state.settings.listen,
+    quit: !!state.transcript.quit,
   }),
 )(Move);

@@ -163,6 +163,12 @@ impl Zmachine {
         let prop_defaults = memory.read_word(0x0A) as usize;
         let static_start = memory.read_word(0x0E) as usize;
 
+        let alphabet = if version >= 5 {
+            Zmachine::load_alphabet(&memory)
+        } else {
+            Zmachine::default_alphabet()
+        };
+
         let mut zvm = Zmachine {
             version,
             ui,
@@ -178,7 +184,7 @@ impl Zmachine {
             initial_pc,
             pc: initial_pc,
             frames: vec![Frame::empty()],
-            alphabet: if version >= 5 { Zmachine::load_alphabet(&memory) } else { Zmachine::default_alphabet() },
+            alphabet,
             abbrev_table: memory.read_word(0x18) as usize,
             separators: Vec::new(),
             dictionary: HashMap::new(),
@@ -232,6 +238,7 @@ impl Zmachine {
     #[allow(non_snake_case)]
     fn load_alphabet(memory: &Buffer) -> [Vec<String>; 3] {
         let alphabet_addr = memory.read_word(0x34) as usize;
+
         if alphabet_addr == 0 {
             Zmachine::default_alphabet()
         } else {
@@ -398,10 +405,10 @@ impl Zmachine {
             let mut step = |zchar: u8| {
                 state = match (zchar, &state) {
                     // the next zchar will be an abbrev index
-                    (zch, &Alphabet(_)) if zch >= 1 && zch <= 3  => {
+                    (zch, &Alphabet(_)) if zch >= 1 && zch <= 3 => {
                         assert!(allow_abbrevs, "Abbrev at {} contained recursive abbrev!", addr);
                         Abbrev(zch)
-                    },
+                    }
                     // shift character for the next zchar
                     (4, &Alphabet(_)) => Alphabet(1),
                     (5, &Alphabet(_)) => Alphabet(2),
@@ -770,11 +777,7 @@ impl Zmachine {
         let byte = self.memory.read_byte(addr);
         let bit = attr % 8;
 
-        if byte & (128 >> bit) != 0 {
-            1
-        } else {
-            0
-        }
+        if byte & (128 >> bit) != 0 { 1 } else { 0 }
     }
 
     fn set_attr(&mut self, object: u16, attr: u16) {
@@ -883,11 +886,7 @@ impl Zmachine {
     fn get_prop_addr(&self, object: u16, property_number: u16) -> usize {
         let prop = self.find_prop(object, property_number);
 
-        if prop.num != 0 {
-            prop.addr
-        } else {
-            0
-        }
+        if prop.num != 0 { prop.addr } else { 0 }
     }
 
     fn get_prop_len(&self, prop_data_addr: usize) -> u8 {
@@ -904,11 +903,8 @@ impl Zmachine {
         } else if prop_header & 0b1000_0000 != 0 {
             // This is already the *second* header byte.
             let len = prop_header & 0b0011_1111;
-            if len == 0 {
-                64
-            } else {
-                len
-            }
+
+            if len == 0 { 64 } else { len }
         } else if prop_header & 0b0100_0000 != 0 {
             2
         } else {
@@ -986,7 +982,7 @@ impl Zmachine {
         self.ui.set_status_bar(&left, &right);
     }
 
-    fn save_state(&self, pc: usize) -> Vec<u8> {
+    fn make_save_state(&self, pc: usize) -> Vec<u8> {
         // save the whole dynamic memory region (between 0 and the start of static)
         let dynamic = self.memory.slice(0, self.static_start);
         let original = self.original_dynamic.as_slice();
@@ -1331,7 +1327,7 @@ impl Zmachine {
             (VAR_229, &[chr]) => self.do_print_char(chr),
             (VAR_230, &[num]) => self.do_print_num(num),
             (VAR_232, &[value]) => self.do_push(value),
-            (VAR_233, &[var]) => { self.do_pull(var); },
+            (VAR_233, &[var]) => { self.do_pull(var); }
             (VAR_236, args) if !args.is_empty() => self.do_call(instr, args[0], &args[1..]), // call_vs2
             (VAR_249, args) if !args.is_empty() => self.do_call(instr, args[0], &args[1..]), // call_vn
             (VAR_250, args) if !args.is_empty() => self.do_call(instr, args[0], &args[1..]), // call_vn2
@@ -1463,6 +1459,7 @@ impl Zmachine {
         // continue instructions until the quit instruction
         loop {
             let instr = self.decode_instruction(self.pc);
+
             if instr.opcode == Opcode::OP0_186 {
                 break;
             }
@@ -1486,43 +1483,45 @@ impl Zmachine {
                 write!(self.instr_log, "\n{}", &instr).unwrap();
             }
 
-            if instr.opcode == Opcode::OP0_186 {
-                return true; // done == true
-            }
-
             match instr.opcode {
+                // SAVE
                 Opcode::OP0_181 => {
                     let pc = instr.next - 1;
-                    let state = self.save_state(pc);
-                    let b64 = base64::encode(&state);
-
-                    let (location, info) = self.get_status();
-                    let status = [&location, " - ", &info].concat();
-
-                    let msg = serde_json::to_string(&(status, b64)).unwrap();
-                    self.ui.message("save", &msg);
+                    let state = self.make_save_state(pc);
+                    self.send_save_message("save", &state);
 
                     // Advance the pc, assuming that the save was successful
                     self.process_save_result(&instr);
                 }
+                // RESTORE (breaks loop)
                 Opcode::OP0_182 => {
                     self.ui.message("restore", "");
                     self.paused_instr = Some(instr);
+
                     return false;
                 }
+                // QUIT (breaks loop)
+                Opcode::OP0_186 => {
+                    // undo 2x - get to the savestate right before the
+                    // "are you sure?" dialog box that usually shows up:
+                    self.undos.pop();
+
+                    if let Some((_, state)) = self.undos.pop() {
+                        self.send_save_message("savestate", &state);
+                    }
+
+                    return true; // done == true
+                }
+                // READ (breaks loop)
                 Opcode::VAR_228 => {
+                    let state = self.make_save_state(self.pc);
+                    self.send_save_message("savestate", &state);
+
                     // web ui saves current state here BEFORE processing user input
-                    let (location, info) = self.get_status();
-                    let status = [&location, " - ", &info].concat();
-
-                    let state = self.save_state(self.pc);
-                    let b64 = base64::encode(&state);
-
-                    let msg = serde_json::to_string(&(status, b64)).unwrap();
-                    self.ui.message("savestate", &msg);
-
+                    let (location, _) = self.get_status();
                     self.current_state = Some((location, state));
                     self.paused_instr = Some(instr);
+
                     return false;
                 }
                 _ => {
@@ -1536,8 +1535,9 @@ impl Zmachine {
     // (passes control back JS afterwards)
     #[allow(dead_code)]
     pub fn handle_input(&mut self, input: String) {
-        // VAR_228 only here (anything else would be an error)
-        let instr = self.paused_instr.take().unwrap();
+        let instr = self.paused_instr.take().expect(
+            "Can't handle input, no paused instruction to resume",
+        );
 
         // handle special debugging commands
         // these inputs shouldn't be processed normally
@@ -1586,35 +1586,35 @@ impl Zmachine {
         let state = base64::decode(data).unwrap();
         self.restore_state(state.as_slice());
     }
+
+    // Web UI only
+    #[allow(dead_code)]
+    fn send_save_message(&mut self, msg_type: &str, state: &[u8]) {
+        let b64 = base64::encode(&state);
+
+        let (location, info) = self.get_status();
+        let status = [&location, " - ", &info].concat();
+
+        let msg_body = serde_json::to_string(&(status, b64)).unwrap();
+        self.ui.message(msg_type, &msg_body);
+    }
 }
 
 // Instruction handlers
 impl Zmachine {
     // OP2_1
     fn do_je(&self, a: u16, values: &[u16]) -> u16 {
-        if values.iter().any(|x| a == *x) {
-            1
-        } else {
-            0
-        }
+        if values.iter().any(|x| a == *x) { 1 } else { 0 }
     }
 
     // OP2_2
     fn do_jl(&self, a: u16, b: u16) -> u16 {
-        if (a as i16) < (b as i16) {
-            1
-        } else {
-            0
-        }
+        if (a as i16) < (b as i16) { 1 } else { 0 }
     }
 
     // OP2_3
     fn do_jg(&self, a: u16, b: u16) -> u16 {
-        if (a as i16) > (b as i16) {
-            1
-        } else {
-            0
-        }
+        if (a as i16) > (b as i16) { 1 } else { 0 }
     }
 
     // OP2_4
@@ -1622,11 +1622,7 @@ impl Zmachine {
         let after = self.read_indirect_variable(var as u8) as i16 - 1;
         self.write_indirect_variable(var as u8, after as u16);
 
-        if after < (value as i16) {
-            1
-        } else {
-            0
-        }
+        if after < (value as i16) { 1 } else { 0 }
     }
 
     // OP2_5
@@ -1634,29 +1630,17 @@ impl Zmachine {
         let after = self.read_indirect_variable(var as u8) as i16 + 1;
         self.write_indirect_variable(var as u8, after as u16);
 
-        if after > (value as i16) {
-            1
-        } else {
-            0
-        }
+        if after > (value as i16) { 1 } else { 0 }
     }
 
     // OP2_6
     fn do_jin(&self, obj1: u16, obj2: u16) -> u16 {
-        if self.get_parent(obj1) == obj2 {
-            1
-        } else {
-            0
-        }
+        if self.get_parent(obj1) == obj2 { 1 } else { 0 }
     }
 
     // OP2_7
     fn do_test(&self, bitmap: u16, flags: u16) -> u16 {
-        if bitmap & flags == flags {
-            1
-        } else {
-            0
-        }
+        if bitmap & flags == flags { 1 } else { 0 }
     }
 
     // OP2_8
@@ -1746,11 +1730,7 @@ impl Zmachine {
 
     // OP1_128
     fn do_jz(&self, a: u16) -> u16 {
-        if a == 0 {
-            1
-        } else {
-            0
-        }
+        if a == 0 { 1 } else { 0 }
     }
 
     // OP1_129
@@ -1895,7 +1875,7 @@ impl Zmachine {
         // The save PC points to either the save instructions branch data or store
         // data. In either case, this is the last byte of the instruction. (so -1)
         let pc = instr.next - 1;
-        let data = self.save_state(pc);
+        let data = self.make_save_state(pc);
         file.write_all(&data[..]).expect("Error saving to file");
 
         self.process_save_result(instr);
@@ -1938,8 +1918,9 @@ impl Zmachine {
         self.save_name = path.file_name().unwrap().to_string_lossy().into_owned();
 
         // restore program counter position, stack frames, and dynamic memory
-        file.read_to_end(&mut data)
-            .expect("Error reading save file");
+        file.read_to_end(&mut data).expect(
+            "Error reading save file",
+        );
         self.restore_state(data.as_slice());
         self.process_restore_result();
     }
@@ -2044,8 +2025,10 @@ impl Zmachine {
 
     // VAR_226
     fn do_storeb(&mut self, array: u16, index: u16, value: u16) {
-        self.memory
-            .write_byte((array + index) as usize, value as u8);
+        self.memory.write_byte(
+            (array + index) as usize,
+            value as u8,
+        );
     }
 
     // VAR_227
@@ -2086,7 +2069,7 @@ impl Zmachine {
 
         // and save the current state
         let location = self.get_object_name(self.read_global(0));
-        let state = self.save_state(instr.next);
+        let state = self.make_save_state(instr.next);
         self.current_state = Some((location, state));
     }
 
@@ -2163,16 +2146,14 @@ impl Zmachine {
 
     // VAR_255
     fn do_check_arg_count(&self, num: u16) -> u16 {
-        let count = u16::from(self.frames
-            .last()
-            .expect("Can't check arg count, no frames!")
-            .arg_count);
+        let count = u16::from(
+            self.frames
+                .last()
+                .expect("Can't check arg count, no frames!")
+                .arg_count,
+        );
 
-        if count >= num {
-            1
-        } else {
-            0
-        }
+        if count >= num { 1 } else { 0 }
     }
 
     fn check_shift_amount(places: i16) {
@@ -2312,8 +2293,7 @@ impl Zmachine {
             String::new()
         };
 
-        self.ui
-            .debug(&format!("{} (len: {})\n", short_name, text_length));
+        self.ui.debug(&format!("{} (len: {})\n", short_name, text_length));
     }
 
     fn get_object_number(&self, input: &str) -> u16 {
@@ -2382,8 +2362,7 @@ impl Zmachine {
             }
         }
 
-        self.ui
-            .debug(&format!("{} ({})\n{:?}", name, num, attributes));
+        self.ui.debug(&format!("{} ({})\n{:?}", name, num, attributes));
     }
 
     pub fn debug_object_details(&self, obj_num: u16) -> String {
@@ -2493,36 +2472,28 @@ impl Zmachine {
     }
 
     fn debug_teleport(&mut self, input: &str) {
-        let you = self
-            .find_yourself()
-            .expect("Can't find you in the object tree");
+        let you = self.find_yourself().expect("Can't find you in the object tree");
         let num = self.get_object_number(input);
 
         if num == 0 {
             self.ui.print("I can't find that room...\n");
             return;
         } else {
-            self.ui
-                .print("Zzzap! Somehow you are in a different place...\n");
+            self.ui.print("Zzzap! Somehow you are in a different place...\n");
         }
 
         self.insert_obj(you, num);
     }
 
     fn debug_steal(&mut self, input: &str) {
-        let you = self
-            .find_yourself()
-            .expect("Can't find you in the object tree");
+        let you = self.find_yourself().expect("Can't find you in the object tree");
         let num = self.get_object_number(input);
 
         if num == 0 {
             self.ui.print("I can't find that object...\n");
             return;
         } else {
-            self.ui.print(&format!(
-                "Zzzing! Somehow you are holding the {}...\n",
-                input
-            ));
+            self.ui.print(&format!("Zzzing! Somehow you are holding the {}...\n", input));
         }
 
         self.insert_obj(num, you);
@@ -2536,20 +2507,17 @@ impl Zmachine {
 
         for (i, state) in self.undos.iter().enumerate() {
             let index = i + 1;
-            self.ui
-                .debug(&format!("    ({}/{}) @ {}", index, total, state.0));
+            self.ui.debug(&format!("    ({}/{}) @ {}", index, total, state.0));
         }
 
         if let Some(ref current) = self.current_state {
             let index = undo_count + 1;
-            self.ui
-                .debug(&format!(" -> ({}/{}) @ {}", index, total, current.0));
+            self.ui.debug(&format!(" -> ({}/{}) @ {}", index, total, current.0));
         }
 
         for (i, state) in self.redos.iter().rev().enumerate() {
             let index = undo_count + i + 2;
-            self.ui
-                .debug(&format!("    ({}/{}) @ {}", index, total, state.0));
+            self.ui.debug(&format!("    ({}/{}) @ {}", index, total, state.0));
         }
     }
 
@@ -2574,10 +2542,7 @@ impl Zmachine {
             }
 
             let branch = match instr.branch {
-                Some(Branch {
-                    address: Some(addr),
-                    ..
-                }) => Some(addr),
+                Some(Branch { address: Some(addr), .. }) => Some(addr),
                 _ => None,
             };
 

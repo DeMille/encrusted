@@ -68,7 +68,9 @@ where
 {
     ZVM.with(|cell| {
         let mut wrapper = cell.borrow_mut();
-        let zvm: &mut Zmachine = wrapper.as_mut().unwrap();
+        let zvm: &mut Zmachine = wrapper.as_mut().expect(
+            "Error unwrapping zmachine from cell"
+        );
 
         func(zvm)
     })
@@ -106,6 +108,7 @@ pub fn create(file_ptr: *mut u8, len: usize) {
 pub fn step() -> bool {
     with(|zvm| {
         let done = zvm.step();
+
         zvm.ui.flush();
         push_updates(zvm);
         done
