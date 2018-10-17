@@ -47,6 +47,10 @@ zmachine.imports(wrap => ({
         msg: { msg, stack: err.stack }
       });
     }),
+
+    rand: function() {
+      return Math.floor(Math.random() * 0xFFFF);
+    }
   },
 }));
 

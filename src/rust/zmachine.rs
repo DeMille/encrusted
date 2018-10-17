@@ -174,7 +174,6 @@ impl Zmachine {
             ui,
             save_dir: options.save_dir.clone(),
             save_name: format!("{}.sav", &options.save_name),
-            options,
             instr_log: String::new(),
             original_dynamic: memory.slice(0, static_start).to_vec(),
             globals_addr: memory.read_word(0x0C) as usize,
@@ -196,8 +195,9 @@ impl Zmachine {
             current_state: None,
             undos: Vec::new(),
             redos: Vec::new(),
-            rng: rand::SeedableRng::from_seed([90, 111, 114, 107]),
+            rng: rand::SeedableRng::from_seed(options.rand_seed.clone()),
             memory,
+            options,
         };
 
         // read into dictionary & word separators
