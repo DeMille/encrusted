@@ -544,7 +544,7 @@ impl Zmachine {
 
     fn get_object_addr(&self, object: u16) -> usize {
         if object == 0 {
-            panic!("Trying to get the address for the INVALID_OBJECT 0");
+            return self.obj_table_addr;
         }
 
         self.obj_table_addr + ((object as usize - 1) * self.obj_size)
@@ -1244,7 +1244,7 @@ impl Zmachine {
         // Match instructions that return values for storing or branching (or both)
         // `result` is an option. either a matched instruction or none (no match)
         let result = match (instr.opcode, &args[..]) {
-            (OP2_1, args) if !args.is_empty() => Some(self.do_je(args[0], &args[1..])),
+            (OP2_1, _) if !args.is_empty() => Some(self.do_je(args[0], &args[1..])),
             (OP2_2, &[a, b]) => Some(self.do_jl(a, b)),
             (OP2_3, &[a, b]) => Some(self.do_jg(a, b)),
             (OP2_4, &[var, value]) => Some(self.do_dec_chk(var, value)),
@@ -1319,7 +1319,7 @@ impl Zmachine {
             (OP0_185, _) => self.do_pop(),
             (OP0_187, _) => self.do_newline(),
             (OP0_188, _) => self.do_show_status(),
-            (VAR_224, args) if !args.is_empty() => self.do_call(instr, args[0], &args[1..]), // call
+            (VAR_224, _) if !args.is_empty() => self.do_call(instr, args[0], &args[1..]), // call
             (VAR_225, &[array, index, value]) => self.do_storew(array, index, value),
             (VAR_226, &[array, index, value]) => self.do_storeb(array, index, value),
             (VAR_227, &[obj, prop, value]) => self.do_put_prop(obj, prop, value),
@@ -1328,9 +1328,9 @@ impl Zmachine {
             (VAR_230, &[num]) => self.do_print_num(num),
             (VAR_232, &[value]) => self.do_push(value),
             (VAR_233, &[var]) => { self.do_pull(var); }
-            (VAR_236, args) if !args.is_empty() => self.do_call(instr, args[0], &args[1..]), // call_vs2
-            (VAR_249, args) if !args.is_empty() => self.do_call(instr, args[0], &args[1..]), // call_vn
-            (VAR_250, args) if !args.is_empty() => self.do_call(instr, args[0], &args[1..]), // call_vn2
+            (VAR_236, _) if !args.is_empty() => self.do_call(instr, args[0], &args[1..]), // call_vs2
+            (VAR_249, _) if !args.is_empty() => self.do_call(instr, args[0], &args[1..]), // call_vn
+            (VAR_250, _) if !args.is_empty() => self.do_call(instr, args[0], &args[1..]), // call_vn2
 
             // special cases to no-op: (input/output streams & sound effects)
             // these might be present in some v3 games but aren't implemented yet
@@ -1619,7 +1619,9 @@ impl Zmachine {
 
     // OP2_4
     fn do_dec_chk(&mut self, var: u16, value: u16) -> u16 {
-        let after = self.read_indirect_variable(var as u8) as i16 - 1;
+        let before = self.read_indirect_variable(var as u8) as i16;
+        let after = before.wrapping_sub(1);
+
         self.write_indirect_variable(var as u8, after as u16);
 
         if after < (value as i16) { 1 } else { 0 }
@@ -1627,7 +1629,9 @@ impl Zmachine {
 
     // OP2_5
     fn do_inc_chk(&mut self, var: u16, value: u16) -> u16 {
-        let after = self.read_indirect_variable(var as u8) as i16 + 1;
+        let before = self.read_indirect_variable(var as u8) as i16;
+        let after = before.wrapping_add(1);
+
         self.write_indirect_variable(var as u8, after as u16);
 
         if after > (value as i16) { 1 } else { 0 }
@@ -1679,13 +1683,18 @@ impl Zmachine {
     }
 
     // OP2_15
-    fn do_loadw(&self, array: u16, index: u16) -> u16 {
-        self.memory.read_word((array + 2 * index) as usize)
+    fn do_loadw(&self, array_addr: u16, index: u16) -> u16 {
+        let word_index = index.wrapping_mul(2);
+        let word_addr = array_addr.wrapping_add(word_index);
+
+        self.memory.read_word(word_addr as usize)
     }
 
     // OP2_16
-    fn do_loadb(&self, array: u16, index: u16) -> u16 {
-        u16::from(self.memory.read_byte((array + index) as usize))
+    fn do_loadb(&self, array_addr: u16, index: u16) -> u16 {
+        let byte_addr = array_addr.wrapping_add(index);
+
+        u16::from(self.memory.read_byte(byte_addr as usize))
     }
 
     // OP2_17
@@ -1756,15 +1765,17 @@ impl Zmachine {
     // OP1_133
     fn do_inc(&mut self, var: u16) {
         let value = self.read_indirect_variable(var as u8);
+        let inc = (value as i16).wrapping_add(1);
 
-        self.write_indirect_variable(var as u8, (value as i16).wrapping_add(1) as u16);
+        self.write_indirect_variable(var as u8, inc as u16);
     }
 
     // OP1_134
     fn do_dec(&mut self, var: u16) {
         let value = self.read_indirect_variable(var as u8);
+        let dec = (value as i16).wrapping_sub(1);
 
-        self.write_indirect_variable(var as u8, (value as i16).wrapping_sub(1) as u16);
+        self.write_indirect_variable(var as u8, dec as u16);
     }
 
     // OP1_135
@@ -2019,16 +2030,18 @@ impl Zmachine {
     }
 
     // VAR_225
-    fn do_storew(&mut self, array: u16, index: u16, value: u16) {
-        self.memory.write_word((array + 2 * index) as usize, value);
+    fn do_storew(&mut self, array_addr: u16, index: u16, value: u16) {
+        let word_index = index.wrapping_mul(2);
+        let word_addr = array_addr.wrapping_add(word_index);
+
+        self.memory.write_word(word_addr as usize, value);
     }
 
     // VAR_226
     fn do_storeb(&mut self, array: u16, index: u16, value: u16) {
-        self.memory.write_byte(
-            (array + index) as usize,
-            value as u8,
-        );
+        let word_addr = array.wrapping_add(index);
+
+        self.memory.write_byte(word_addr as usize, value as u8);
     }
 
     // VAR_227
@@ -2165,6 +2178,7 @@ impl Zmachine {
     fn do_log_shift(&mut self, number: u16, places: u16) -> u16 {
         let places = places as i16;
         Self::check_shift_amount(places);
+
         if places > 0 {
             number << places
         } else if places < 0 {
@@ -2178,6 +2192,7 @@ impl Zmachine {
     fn do_art_shift(&mut self, number: u16, places: u16) -> u16 {
         let places = places as i16;
         Self::check_shift_amount(places);
+
         if places > 0 {
             number << places
         } else if places < 0 {
