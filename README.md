@@ -18,6 +18,7 @@ Built with Rust and WebAssembly (`wasm32-unknown-unknown`).
 [web]: https://sterlingdemille.com/encrusted
 [APIs]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API
 
+
 ### Install
 Terminal version:
 
@@ -29,19 +30,33 @@ Run a file with `encrusted <FILE>`.
 Use `$undo` and `$redo` to step through your move history.  
 Use `save` and `restore` to save your progress.
 
+
 ### Build
-WebAssembly/React web version:
+WebAssembly/React web version (requires node & rust nightly):
 
 ```sh
 # Runs webpack dev server on port 8000
 npm run dev
 
-# Builds web interface (.wasm module) and bundles JS into the ./build directory
+# Build .wasm module with rust nightly, debug mode
+npm run build:debug
+
+# Or build all in release mode & bundle JS into the ./build directory
 npm run release
 ```
 
+
+### Tests
+[![Build Status](https://travis-ci.org/DeMille/encrusted.svg?branch=master)](https://travis-ci.org/DeMille/encrusted)
+
+Crude testing by running the [czech unit tests](https://inform-fiction.org/zmachine/standards/z1point1/appc.html):
+```
+npm run test
+```
+
+
 ### Notes
-- Currently only supports v3 zcode files (most of Infocom's library, really)
+- Currently only supports v3 zcode files
 - Saves games in the Quetzal format
 
 
