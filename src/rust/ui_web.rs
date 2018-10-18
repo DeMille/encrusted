@@ -78,6 +78,7 @@ impl UI for WebUI {
             } else {
                 self.buffer.get(index - 1)
             };
+
             let next = self.buffer.get(index + 1);
 
             match *item {

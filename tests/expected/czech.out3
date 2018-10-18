@@ -1,0 +1,53 @@
+CZECH: the Comprehensive Z-machine Emulation CHecker, version 0.8
+Test numbers appear in [brackets].
+
+print works or you wouldn't be seeing this.
+
+Jumps [2]: jump.je..........jg.......jl.......jz...offsets..
+Variables [32]: push/pull..pop.store.load.dec.......inc.......
+    dec_chk...........inc_chk.........
+Arithmetic ops [71]: add.......sub.......
+    mul........div...........mod...........
+Logical ops [115]: not....and.....or.....
+Memory [129]: loadw.loadb..storeb..storew...
+Subroutines [137]: call....ret.
+    rtrue.rfalse.ret_popped.
+    Computed call...
+Objects [148]: get_parent....get_sibling.......get_child......jin.......
+    test_attr......set_attr....clear_attr....set/clear/test_attr..
+    get_next_prop......get_prop_len/get_prop_addr....
+    get_prop..........put_prop ..........
+    remove..insert.......
+Indirect Opcodes [227]: load..................store.........................
+    pull...............inc...............dec...............
+    inc_chk...............dec_chk...............
+Misc [345]: test...random.verify.
+Header (No tests)
+    standard 1.0 
+    interpreter 0  ()
+    Flags on: screen-splitting, variable-pitch-default, 
+    Flags off: time game, story file split, NO status, transcripting on, fixed-pitch on, 
+
+
+
+Print opcodes [350]: Tests should look like... '[Test] opcode (stuff): stuff'
+print_num (0, 1, -1, 32767,-32768, -1): 0, 1, -1, 32767, -32768, -1
+[356] print_char (abcd): abcd
+[360] new_line:
+
+There should be an empty line above this line.
+print_ret (should have newline after this)
+.
+print_addr (Hello.): Hello.
+
+print_paddr (A long string that Inform will put in high memory):
+A long string that Inform will put in high memory
+Abbreviations (I love 'xyzzy' [two times]): I love 'xyzzy'  I love 'xyzzy'
+
+[367] print_obj (Test Object #1Test Object #2): Test Object #1Test Object #2
+
+
+Performed 368 tests.
+Passed: 349, Failed: 0, Print tests: 19
+Didn't crash: hooray!
+Last test: quit!

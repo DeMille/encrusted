@@ -1,0 +1,55 @@
+CZECH: the Comprehensive Z-machine Emulation CHecker, version 0.8
+Test numbers appear in [brackets].
+
+print works or you wouldn't be seeing this.
+
+Jumps [2]: jump.je..........jg.......jl.......jz...offsets..
+Variables [32]: push/pull..pop.store.load.dec.......inc.......
+    dec_chk...........inc_chk.........
+Arithmetic ops [71]: add.......sub.......
+    mul........div...........mod...........
+Logical ops [115]: not....and.....or.....
+Memory [129]: loadw.loadb..storeb..storew...
+Subroutines [137]: call_1s.call_2s..call_vs2...call_vs.....ret.
+    rtrue.rfalse.ret_popped.
+    Computed call...
+Objects [155]: get_parent....get_sibling.......get_child......jin.......
+    test_attr......set_attr....clear_attr....set/clear/test_attr..
+    get_next_prop......get_prop_len/get_prop_addr....
+    get_prop..........put_prop ..........
+    remove..insert.......
+    Spec1.0 length-64 props...........
+Indirect Opcodes [245]: load..................store.........................
+    pull...............inc...............dec...............
+    inc_chk...............dec_chk...............
+Misc [363]: test...random.verify.
+Header (No tests)
+    standard 1.0 
+    interpreter 4 F (Amiga)
+    Flags on: boldface, italic, fixed-space, timer, 
+    Flags off: color, pictures, sound, transcripting on, fixed-pitch on, 
+    Screen size: 77x14
+
+
+
+Print opcodes [368]: Tests should look like... '[Test] opcode (stuff): stuff'
+print_num (0, 1, -1, 32767,-32768, -1): 0, 1, -1, 32767, -32768, -1
+[374] print_char (abcd): abcd
+[378] new_line:
+
+There should be an empty line above this line.
+print_ret (should have newline after this)
+.
+print_addr (Hello.): Hello.
+
+print_paddr (A long string that Inform will put in high memory):
+A long string that Inform will put in high memory
+Abbreviations (I love 'xyzzy' [two times]): I love 'xyzzy'  I love 'xyzzy'
+
+[385] print_obj (Test Object #1Test Object #2): Test Object #1Test Object #2
+
+
+Performed 386 tests.
+Passed: 367, Failed: 0, Print tests: 19
+Didn't crash: hooray!
+Last test: quit!

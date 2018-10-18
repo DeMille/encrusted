@@ -1,0 +1,58 @@
+CZECH: the Comprehensive Z-machine Emulation CHecker, version 0.8
+Test numbers appear in [brackets].
+
+print works or you wouldn't be seeing this.
+
+Jumps [2]: jump.je..........jg.......jl.......jz...offsets..
+Variables [32]: push/pull..store.load.dec.......inc.......
+    dec_chk...........inc_chk.........
+Arithmetic ops [70]: add.......sub.......
+    mul........div...........mod...........
+Logical ops [114]: not....and.....or.....art_shift........log_shift........
+Memory [144]: loadw.loadb..storeb..storew...
+Subroutines [152]: call_1s.call_2s..call_vs2...call_vs.....ret.
+    call_1n.call_2n..call_vn..call_vn2..
+    rtrue.rfalse.ret_popped.
+    Computed call...
+    check_arg_count................
+Objects [193]: get_parent....get_sibling.......get_child......jin.......
+    test_attr......set_attr....clear_attr....set/clear/test_attr..
+    get_next_prop......get_prop_len/get_prop_addr....
+    get_prop..........put_prop ..........
+    remove..insert.......
+    Spec1.0 length-64 props...........
+Indirect Opcodes [283]: load..................store.........................
+    pull...............inc...............dec...............
+    inc_chk...............dec_chk...............
+Misc [401]: test...random.verify.piracy.
+Header (No tests)
+    standard 1.0 
+    interpreter 4 F (Amiga)
+    Flags on: color, boldface, italic, fixed-space, timer, 
+    Flags off: pictures, sound, transcripting on, fixed-pitch on, redraw pending, using pictures, using undo, using mouse, using colors, using sound, using menus, 
+    Screen size: 77x14; in 1x1 units: 77x14
+    Default color: default on default
+
+
+
+Print opcodes [407]: Tests should look like... '[Test] opcode (stuff): stuff'
+print_num (0, 1, -1, 32767,-32768, -1): 0, 1, -1, 32767, -32768, -1
+[413] print_char (abcd): abcd
+[417] new_line:
+
+There should be an empty line above this line.
+print_ret (should have newline after this)
+.
+print_addr (Hello.): Hello.
+
+print_paddr (A long string that Inform will put in high memory):
+A long string that Inform will put in high memory
+Abbreviations (I love 'xyzzy' [two times]): I love 'xyzzy'  I love 'xyzzy'
+
+[424] print_obj (Test Object #1Test Object #2): Test Object #1Test Object #2
+
+
+Performed 425 tests.
+Passed: 406, Failed: 0, Print tests: 19
+Didn't crash: hooray!
+Last test: quit!

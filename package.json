@@ -15,7 +15,8 @@
     "release": "npm run bundle && npm run build:release",
     "dev": "webpack-dev-server --config ./webpack.dev.js --content-base ./build --host 0.0.0.0 --port 8000 --no-inline",
     "clippy": "cargo clippy -- -A unreadable_literal -A cast_lossless -Z no-trans",
-    "clippy-lite": "cargo clippy -- -A unreadable_literal -A cast_lossless -A match_same_arms -A match_overlapping_arm -Z no-trans"
+    "clippy-lite": "cargo clippy -- -A unreadable_literal -A cast_lossless -A match_same_arms -A match_overlapping_arm -Z no-trans",
+    "test": "node ./tests/czech.js"
   },
   "dependencies": {
     "d3": "^3.5.17",
