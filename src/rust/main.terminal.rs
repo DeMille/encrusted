@@ -1,3 +1,4 @@
+extern crate atty;
 extern crate base64;
 extern crate clap;
 extern crate rand;
