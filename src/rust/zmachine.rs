@@ -2169,37 +2169,31 @@ impl Zmachine {
         if count >= num { 1 } else { 0 }
     }
 
-    fn check_shift_amount(places: i16) {
-        assert!(places <= 15, "Cannot do shift > 15 places! ({})", places);
-        assert!(places >= -15, "Cannot do shift < -15 places! ({})", places);
-    }
-
     // EXT_1002
     fn do_log_shift(&mut self, number: u16, places: u16) -> u16 {
+        let number = number as u32;
         let places = places as i16;
-        Self::check_shift_amount(places);
 
         if places > 0 {
-            number << places
+            (number << places) as u16
         } else if places < 0 {
-            number >> -places
+            (number >> -places) as u16
         } else {
-            number
+            number as u16
         }
     }
 
     // EXT_1003
     fn do_art_shift(&mut self, number: u16, places: u16) -> u16 {
+        let mut number = (number as i16) as i32;
         let places = places as i16;
-        Self::check_shift_amount(places);
 
         if places > 0 {
-            number << places
+            number <<= places;
         } else if places < 0 {
-            ((number as i16) >> -places) as u16
-        } else {
-            number
+            number >>= -places;
         }
+        (number as i16) as u16
     }
 }
 
