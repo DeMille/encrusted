@@ -1,6 +1,12 @@
 language: rust
+
 rust:
   - nightly
+
 before_install:
   - nvm install node
-script: "npm test"
+
+script:
+  - npm run check:term
+  - ./tests/runtests.sh
+  - npm test
