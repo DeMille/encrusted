@@ -5,6 +5,7 @@ use std::io;
 use std::io::Write;
 
 use regex::Regex;
+use atty::Stream;
 use term_size;
 
 use traits::UI;
@@ -17,6 +18,7 @@ lazy_static! {
 
 #[derive(Debug)]
 pub struct TerminalUI {
+    isatty: bool,
     width: usize,
     x_position: usize,
 }
@@ -40,7 +42,7 @@ impl TerminalUI {
     }
 
     fn is_term(&self) -> bool {
-        self.width != 0
+        self.isatty
     }
 }
 
@@ -48,11 +50,13 @@ impl UI for TerminalUI {
     fn new() -> Box<TerminalUI> {
         if let Some((w, _)) = term_size::dimensions() {
             Box::new(TerminalUI {
+                isatty: atty::is(Stream::Stdout),
                 width: w,
                 x_position: 0,
             })
         } else {
             Box::new(TerminalUI {
+                isatty: false,
                 width: 0,
                 x_position: 0,
             })

@@ -1,0 +1,8 @@
+** game: build/czech.z3
+
+* czech.z3
+
+Performed 368 tests.
+Passed: 349, Failed: 0, Print tests: 19
+Didn't crash: hooray!
+Last test: quit!

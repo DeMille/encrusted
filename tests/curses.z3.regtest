@@ -1,0 +1,38 @@
+** game: curses.z3
+
+* curses
+
+An Interactive Diversion
+
+> drop biscuit, paper
+crumpled piece of paper: Dropped.
+
+> south
+Anyway the attic continues to the southeast.
+
+> get parcel from cupboard
+Removed.
+
+> unwrap parcel
+You tear open the parcel to find a box of chocolates and a card.
+
+> north
+You can also see a crumpled piece of paper and a chocolate biscuit here.
+
+> n
+As you disturb the still air, the attic key, which was balanced on top of the demijohn, slips onto the floor and disappears into a crack in the floorboards.
+
+> w
+Jemima herself seems to be in the potting room to the west.
+
+> s
+A space about six feet square.
+
+> examine sheets
+Not as many sheets as you thought
+
+> turn wireless on
+Nothing happens.
+
+>push wireless north
+It moves easily on the casters.

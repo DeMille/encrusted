@@ -1,6 +1,12 @@
 language: rust
+
 rust:
   - nightly
+
 before_install:
   - nvm install node
-script: "npm test"
+
+script:
+  - cargo build --bin encrusted
+  - ./tests/runtests.sh
+  - npm test

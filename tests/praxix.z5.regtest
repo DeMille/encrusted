@@ -1,0 +1,9 @@
+** game: build/praxix.z5
+
+* praxix
+
+Praxix: A Z-code interpreter unit test
+
+> all
+!FAIL
+All tests passed.
