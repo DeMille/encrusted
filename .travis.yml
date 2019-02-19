@@ -1,8 +1,5 @@
 language: rust
 
-rust:
-  - nightly
-
 before_install:
   - nvm install node
 
