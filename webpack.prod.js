@@ -5,6 +5,8 @@ const CopyWebpackPlugin = require('copy-webpack-plugin');
 const UglifyPlugin = require('uglifyjs-webpack-plugin');
 
 module.exports = {
+  mode: 'production',
+
   entry: {
     bundle: './src/js/index.js',
     worker: './src/js/worker.js',
@@ -17,7 +19,7 @@ module.exports = {
   },
 
   module: {
-    loaders: [
+    rules: [
       {
         test: /.jsx?$/,
         loader: 'babel-loader',
