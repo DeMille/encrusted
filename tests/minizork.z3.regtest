@@ -1,0 +1,41 @@
+** game: minizork.z3
+
+* minizork
+
+MINI-ZORK I: The Great Underground Empire
+Copyright (c) 1988 Infocom, Inc. All rights reserved.
+ZORK is a registered trademark of Infocom, Inc.
+Release 34 / Serial number 871124
+
+West of House
+You are standing in an open field west of a white house, with a boarded front door. You could circle the house
+to the north or south.
+There is a small mailbox here.
+
+> north
+
+North of House
+You are facing the north side of a white house. There is no door here, and all the windows are boarded up. A
+narrow path winds north through the trees.
+
+> east
+
+Behind House
+You are behind the white house. Paths lead into the forest to the east and northeast. In one corner of the house
+is a small window which is slightly ajar.
+
+> open
+
+[window]
+With great effort, you open the window enough to allow entry.
+
+> in
+
+Kitchen
+You are in the kitchen of the white house. A table has been used recently for the preparation of food. A passage
+leads west and a dark staircase leads upward. A chimney leads down and to the east is a small window which is
+open.
+A bottle is sitting on the table.
+The glass bottle contains:
+  A quantity of water
+On the table is an elongated brown sack, smelling of hot peppers.

@@ -1,9 +1,65 @@
-** game: build/praxix.z5
+** game: praxix.z5
 
 * praxix
 
 Praxix: A Z-code interpreter unit test
 
-> all
-!FAIL
-All tests passed.
+#
+#
+> operand
+Basic operand values:
+Passed.
+
+#
+#
+> arith
+Integer arithmetic:
+Passed.
+
+#
+#
+> comarith
+Compound arithmetic expressions:
+Passed.
+
+#
+#
+> bitwise
+Bitwise arithmetic:
+Passed.
+
+#
+#
+> shift
+Bit shifts:
+Passed.
+
+#
+#
+> inc
+Increment/decrement:
+Passed.
+
+#
+#
+> incchk
+Increment/decrement and branch:
+Passed.
+
+#
+#
+> array
+Array loads and stores:
+Passed.
+
+#
+#
+> indirect
+Indirect opcodes:
+Passed.
+
+#
+#
+> specfixes
+Z-Machine 1.1 Updates/Clarifications:
+Passed.

@@ -7,6 +7,4 @@ before_install:
   - nvm install node
 
 script:
-  - cargo build --bin encrusted
-  - ./tests/runtests.sh
   - npm test
