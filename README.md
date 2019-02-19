@@ -1,13 +1,18 @@
-<img src="https://demille.github.io/encrusted/src/img/name.svg" alt="encrusted" width="200px;"/>
+<img src="https://demille.github.io/encrusted/src/img/name.svg" alt="encrusted" width="200px" height="75px" align="left" />
+
+<img src="https://img.shields.io/crates/v/encrusted.svg" alt="Crates.io" align="right" />
+<br/>
+<img src="https://travis-ci.org/DeMille/encrusted.svg?branch=master" alt="Build Status" align="right" />
+<br/>
 
 ---
 
 #### A z-machine (interpreter) for Infocom-era text adventure games like Zork
 
-Runs in a web interface or directly in a terminal.  
+Runs in a web interface or directly in a terminal.
 Built with Rust and WebAssembly (`wasm32-unknown-unknown`).
 
-🎮 [Load the web version][web]
+🎮 &nbsp;[Launch the web player][web]
 
 **Features**
 - [x] Live mapping to keep track of where you are
@@ -26,8 +31,8 @@ Terminal version:
 cargo install encrusted
 ```
 
-Run a file with `encrusted <FILE>`.  
-Use `$undo` and `$redo` to step through your move history.  
+Run a file with `encrusted <FILE>`.
+Use `$undo` and `$redo` to step through your move history.
 Use `save` and `restore` to save your progress.
 
 
@@ -35,6 +40,10 @@ Use `save` and `restore` to save your progress.
 WebAssembly/React web version (requires node & rust nightly):
 
 ```sh
+# If you haven't added nightly or the wasm32 target:
+rustup toolchain install nightly
+rustup target add wasm32-unknown-unknown --toolchain nightly
+
 # Runs webpack dev server on port 8000
 npm run dev
 
@@ -47,9 +56,8 @@ npm run release
 
 
 ### Tests
-[![Build Status](https://travis-ci.org/DeMille/encrusted.svg?branch=master)](https://travis-ci.org/DeMille/encrusted)
 
-Crude testing by running the [czech unit tests](https://inform-fiction.org/zmachine/standards/z1point1/appc.html):
+Run z-machine tests ([czech](https://inform-fiction.org/zmachine/standards/z1point1/appc.html) & [praxix](https://inform-fiction.org/zmachine/standards/z1point1/appc.html)) through [regtest](https://eblong.com/zarf/plotex/regtest.html):
 ```
 npm run test
 ```

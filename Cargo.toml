@@ -1,7 +1,7 @@
 [package]
 authors = ["Sterling DeMille <sterlingdemille+github@gmail.com>"]
 name = "encrusted"
-version = "1.0.0"
+version = "1.1.0"
 description = "A z-machine (interpreter) for Infocom-era text adventure games"
 repository = "https://github.com/demille/encrusted"
 readme = "README.md"

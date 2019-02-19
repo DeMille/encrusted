@@ -334,6 +334,7 @@ impl Zmachine {
     }
 
     fn read_variable(&mut self, index: u8) -> u16 {
+        #[allow(unreachable_patterns)]
         match index {
             0 => self.stack_pop(),
             1...15 => self.read_local(index - 1),
@@ -343,6 +344,7 @@ impl Zmachine {
     }
 
     fn read_indirect_variable(&mut self, index: u8) -> u16 {
+        #[allow(unreachable_patterns)]
         match index {
             0 => self.stack_peek(),
             1...15 => self.read_local(index - 1),
@@ -352,6 +354,7 @@ impl Zmachine {
     }
 
     fn write_variable(&mut self, index: u8, value: u16) {
+        #[allow(unreachable_patterns)]
         match index {
             0 => self.stack_push(value),
             1...15 => self.write_local(index - 1, value),
@@ -361,6 +364,7 @@ impl Zmachine {
     }
 
     fn write_indirect_variable(&mut self, index: u8, value: u16) {
+        #[allow(unreachable_patterns)]
         match index {
             0 => {
                 self.stack_pop();
@@ -1127,6 +1131,7 @@ impl Zmachine {
 
         use self::OperandType::*;
 
+        #[allow(unreachable_patterns)]
         let (opcode, optypes) = match first {
             0xbe => (get_opcode(read.byte(), 1000), get_types(&[read.byte()])),
             0x00...0x1f => (get_opcode(btm_5(first), 0), vec![Small, Small]),
