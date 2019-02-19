@@ -1,8 +1,12 @@
-<img src="https://demille.github.io/encrusted/src/img/name.svg" alt="encrusted" width="200px" height="75px" align="left" />
+<img src="https://demille.github.io/encrusted/src/img/name.svg" alt="encrusted" width="200px" height="78px" align="left" />
 
-<img src="https://img.shields.io/crates/v/encrusted.svg" alt="Crates.io" align="right" />
-<br/>
-<img src="https://travis-ci.org/DeMille/encrusted.svg?branch=master" alt="Build Status" align="right" />
+<p align="right">
+  <img src="https://img.shields.io/crates/v/encrusted.svg" alt="Crates.io" align="right" />
+  <br/>
+  <a href="https://travis-ci.org/DeMille/encrusted">
+    <img src="https://travis-ci.org/DeMille/encrusted.svg?branch=master" alt="Built Status" align="right" />
+  </a>
+</p>
 <br/>
 
 ---
@@ -13,6 +17,8 @@ Runs in a web interface or directly in a terminal.
 Built with Rust and WebAssembly (`wasm32-unknown-unknown`).
 
 🎮 &nbsp;[Launch the web player][web]
+
+<br/>
 
 **Features**
 - [x] Live mapping to keep track of where you are
