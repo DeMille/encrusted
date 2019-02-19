@@ -6,7 +6,6 @@ description = "A z-machine (interpreter) for Infocom-era text adventure games"
 repository = "https://github.com/demille/encrusted"
 readme = "README.md"
 license = "MIT"
-publish = false
 
 [[bin]]
 name = "encrusted"
