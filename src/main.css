@@ -712,8 +712,15 @@ h1 {
     font-weight: bold;
 }
 
+.monospace .moves {
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
 .move {
     margin-top: 5px;
+    white-space: pre-wrap;
 }
 
 .move:first-child {

@@ -133,6 +133,22 @@ class Settings extends Component {
           <input
             type="checkbox"
             className="toggle"
+            name="mono"
+            id="mono"
+            onChange={this.update}
+            checked={!!this.props.mono}
+          />
+          <label htmlFor="mono"></label>
+
+          <label htmlFor="mono" className="mb-0">
+            Monospace font
+          </label>
+        </div>
+
+        <div className="row align-center mb-1">
+          <input
+            type="checkbox"
+            className="toggle"
             name="read"
             id="read"
             onChange={this.update}
@@ -234,6 +250,7 @@ export default connect(
     tree: state.settings.tree,
     read: state.settings.read,
     plain: state.settings.plain,
+    mono: state.settings.mono,
     listen: state.settings.listen,
     instructions: state.settings.instructions,
     currentSave: state.saves.current,

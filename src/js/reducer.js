@@ -150,6 +150,7 @@ const initialSettings = {
   map:    !!JSON.parse(localStorage.getItem('setting:map')),
   tree:   !!JSON.parse(localStorage.getItem('setting:tree')),
   plain:  !!JSON.parse(localStorage.getItem('setting:plain')),
+  mono:   !!JSON.parse(localStorage.getItem('setting:mono')),
   read:   !!JSON.parse(localStorage.getItem('setting:read')),
   listen: !!JSON.parse(localStorage.getItem('setting:listen')),
   instructions: !!JSON.parse(localStorage.getItem('setting:instructions')),

@@ -77,6 +77,7 @@ class Transcript extends Component {
     let className = (moves.length) ? 'show transcript' : 'hide transcript';
     // opt remove styling on objects/rooms
     if (this.props.isPlain) className += ' plain';
+    if (this.props.isMonospace) className += ' monospace';
 
     return (
       <div className={className} ref={el => this.el = el}>
@@ -101,6 +102,7 @@ export default connect(
     saves: state.saves.saves,
     isRead: state.settings.read,
     isPlain: state.settings.plain,
+    isMonospace: state.settings.mono,
   }),
   dispatch => ({
     start: (filename, file) => dispatch({ type: 'TS::START', filename, file }),
