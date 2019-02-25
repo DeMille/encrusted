@@ -34,7 +34,7 @@ Built with Rust and WebAssembly (`wasm32-unknown-unknown`).
 Terminal version:
 
 ```sh
-cargo install encrusted
+cargo install encrusted --bin encrusted
 ```
 
 Run a file with `encrusted <FILE>`.
