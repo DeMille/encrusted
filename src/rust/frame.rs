@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Frame {
     stack: Vec<u16>,
     locals: Vec<u16>,
@@ -158,8 +158,8 @@ impl Frame {
         bytes.push((self.resume & 0x00_00FF) as u8);
 
         let mut flags = self.locals.len() as u8; // 0b0000vvvv
-        if self.store.is_some() {
-            flags += 0b0001_0000;
+        if self.store.is_none() {
+            flags |= 0b0001_0000;
         }
 
         let mut args_supplied = 0b0000_0000;
@@ -192,5 +192,18 @@ impl Frame {
 impl fmt::Display for Frame {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_roundtrip() {
+        let frame = Frame::new(13, Some(4), vec![], &[]);
+        let bytes = frame.to_vec();
+        let frame_again = Frame::from_bytes(&bytes);
+        assert_eq!(frame, frame_again);
     }
 }
