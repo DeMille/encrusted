@@ -124,7 +124,7 @@ impl ObjectProperty {
 }
 
 pub struct Zmachine {
-    pub ui: Box<UI>,
+    pub ui: Box< dyn UI>,
     pub options: Options,
     pub instr_log: String,
     version: u8,
@@ -155,7 +155,7 @@ pub struct Zmachine {
 }
 
 impl Zmachine {
-    pub fn new(data: Vec<u8>, ui: Box<UI>, options: Options) -> Zmachine {
+    pub fn new(data: Vec<u8>, ui: Box<dyn UI>, options: Options) -> Zmachine {
         let memory = Buffer::new(data);
 
         let version = memory.read_byte(0x00);
@@ -259,8 +259,8 @@ impl Zmachine {
         let addr = addr as usize;
 
         match self.version {
-            1...3 => addr * 2,
-            4...7 => addr * 4,
+            1..=3 => addr * 2,
+            4..=7 => addr * 4,
             8 => addr * 8,
             _ => unreachable!(),
         }
@@ -268,14 +268,14 @@ impl Zmachine {
 
     fn unpack_routine_addr(&self, addr: u16) -> usize {
         match self.unpack(addr) {
-            x @ 6...7 => x + self.routine_offset * 8,
+            x @ 6..=7 => x + self.routine_offset * 8,
             x => x,
         }
     }
 
     fn unpack_print_paddr(&self, addr: u16) -> usize {
         match self.unpack(addr) {
-            x @ 6...7 => x + self.string_offset * 8,
+            x @ 6..=7 => x + self.string_offset * 8,
             x => x,
         }
     }
@@ -337,8 +337,8 @@ impl Zmachine {
         #[allow(unreachable_patterns)]
         match index {
             0 => self.stack_pop(),
-            1...15 => self.read_local(index - 1),
-            16...255 => self.read_global(index - 16),
+            1..=15 => self.read_local(index - 1),
+            16..=255 => self.read_global(index - 16),
             _ => unreachable!(),
         }
     }
@@ -347,8 +347,8 @@ impl Zmachine {
         #[allow(unreachable_patterns)]
         match index {
             0 => self.stack_peek(),
-            1...15 => self.read_local(index - 1),
-            16...255 => self.read_global(index - 16),
+            1..=15 => self.read_local(index - 1),
+            16..=255 => self.read_global(index - 16),
             _ => unreachable!(),
         }
     }
@@ -357,8 +357,8 @@ impl Zmachine {
         #[allow(unreachable_patterns)]
         match index {
             0 => self.stack_push(value),
-            1...15 => self.write_local(index - 1, value),
-            16...255 => self.write_global(index - 16, value),
+            1..=15 => self.write_local(index - 1, value),
+            16..=255 => self.write_global(index - 16, value),
             _ => unreachable!(),
         }
     }
@@ -370,8 +370,8 @@ impl Zmachine {
                 self.stack_pop();
                 self.stack_push(value);
             }
-            1...15 => self.write_local(index - 1, value),
-            16...255 => self.write_global(index - 16, value),
+            1..=15 => self.write_local(index - 1, value),
+            16..=255 => self.write_global(index - 16, value),
             _ => unreachable!(),
         }
     }
@@ -822,7 +822,7 @@ impl Zmachine {
         let value_addr;
 
         match self.version {
-            1...3 => {
+            1..=3 => {
                 num = header % 32;
                 len = header / 32 + 1;
                 value_addr = addr + 1; // 1 byte header
@@ -1134,16 +1134,16 @@ impl Zmachine {
         #[allow(unreachable_patterns)]
         let (opcode, optypes) = match first {
             0xbe => (get_opcode(read.byte(), 1000), get_types(&[read.byte()])),
-            0x00...0x1f => (get_opcode(btm_5(first), 0), vec![Small, Small]),
-            0x20...0x3f => (get_opcode(btm_5(first), 0), vec![Small, Variable]),
-            0x40...0x5f => (get_opcode(btm_5(first), 0), vec![Variable, Small]),
-            0x60...0x7f => (get_opcode(btm_5(first), 0), vec![Variable, Variable]),
-            0x80...0x8f => (get_opcode(btm_4(first), 128), vec![Large]),
-            0x90...0x9f => (get_opcode(btm_4(first), 128), vec![Small]),
-            0xa0...0xaf => (get_opcode(btm_4(first), 128), vec![Variable]),
-            0xb0...0xbd | 0xbf => (get_opcode(btm_4(first), 176), vec![]), // OP_0
-            0xc0...0xdf => (get_opcode(btm_5(first), 0), get_types(&[read.byte()])),
-            0xe0...0xff => {
+            0x00..=0x1f => (get_opcode(btm_5(first), 0), vec![Small, Small]),
+            0x20..=0x3f => (get_opcode(btm_5(first), 0), vec![Small, Variable]),
+            0x40..=0x5f => (get_opcode(btm_5(first), 0), vec![Variable, Small]),
+            0x60..=0x7f => (get_opcode(btm_5(first), 0), vec![Variable, Variable]),
+            0x80..=0x8f => (get_opcode(btm_4(first), 128), vec![Large]),
+            0x90..=0x9f => (get_opcode(btm_4(first), 128), vec![Small]),
+            0xa0..=0xaf => (get_opcode(btm_4(first), 128), vec![Variable]),
+            0xb0..=0xbd | 0xbf => (get_opcode(btm_4(first), 176), vec![]), // OP_0
+            0xc0..=0xdf => (get_opcode(btm_5(first), 0), get_types(&[read.byte()])),
+            0xe0..=0xff => {
                 let opcode = get_opcode(btm_5(first), 224);
 
                 if opcode == Opcode::VAR_236 || opcode == Opcode::VAR_250 {
@@ -2022,7 +2022,7 @@ impl Zmachine {
 
         for _ in 0..count {
             match self.version {
-                1...4 => locals.push(read.word()),
+                1..=4 => locals.push(read.word()),
                 _ => locals.push(0),
             };
         }
@@ -2542,7 +2542,7 @@ impl Zmachine {
 
         for _ in 0..count {
             match self.version {
-                1...4 => locals.push(read.word()),
+                1..=4 => locals.push(read.word()),
                 _ => locals.push(0),
             };
         }
@@ -2575,7 +2575,7 @@ impl Zmachine {
             if let Some(addr) = next {
                 follow(zvm, set, zvm.decode_instruction(addr));
             };
-        };
+        }
 
         follow(self, &mut set, first_instr);
 

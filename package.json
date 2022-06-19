@@ -19,12 +19,12 @@
     "test": "cargo build --bin encrusted && ./tests/runtests.sh"
   },
   "dependencies": {
+    "@popperjs/core": "^2.11.5",
     "d3": "^3.5.17",
     "lz-string": "^1.4.4",
-    "popper.js": "^1.14.7",
     "react": "^16.8.2",
     "react-dom": "^16.8.2",
-    "react-dropzone": "^4.3.0",
+    "react-dropzone": "^14.2.1",
     "react-modal": "^3.8.1",
     "react-redux": "^6.0.0",
     "react-router-dom": "^4.3.1",

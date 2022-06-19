@@ -128,8 +128,8 @@ impl UI for WebUI {
 
         unsafe {
             js_message(type_ptr, msg_ptr);
-            CString::from_raw(type_ptr); // free memory
-            CString::from_raw(msg_ptr);
+            drop(CString::from_raw(type_ptr)); // free memory
+            drop(CString::from_raw(msg_ptr));
         }
     }
 
