@@ -68,7 +68,7 @@ fn main() {
     if version == 0 || version > 8 {
         println!(
             "\n\
-             \"{}\" has an nsupported game version: {}\n\
+             \"{}\" has an unsupported game version: {}\n\
              Is this a valid game file?\n",
             path.to_string_lossy(),
             version

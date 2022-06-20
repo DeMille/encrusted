@@ -85,7 +85,7 @@ impl fmt::Display for Operand {
             Operand::Large(x) => write!(f, "{:04x}", x),
             Operand::Variable(x) => match x {
                 0 => write!(f, "sp"),
-                1...15 => write!(f, "local{}", x - 1),
+                1..=15 => write!(f, "local{}", x - 1),
                 _ => write!(f, "g{}", x - 16),
             },
         }
@@ -362,7 +362,7 @@ impl fmt::Display for Instruction {
         if let Some(x) = self.store {
             match x {
                 0 => write!(f, " -> sp"),
-                1...15 => write!(f, " -> local{}", x - 1),
+                1..=15 => write!(f, " -> local{}", x - 1),
                 _ => write!(f, " -> g{}", x - 16),
             }?;
         };
